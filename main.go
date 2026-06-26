@@ -6,6 +6,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend/dist
@@ -18,10 +19,15 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:  "My First Wails App",
-		Width:  1024,
-		Height: 768,
+		Width:  640,
+		Height: 480,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
+		},
+		Windows: &windows.Options{
+			ZoomFactor:           1.0,
+			IsZoomControlEnabled: false,
+			DisablePinchZoom:     true,
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,

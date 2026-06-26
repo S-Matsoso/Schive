@@ -1,9 +1,12 @@
 <template>
-  <aside class="sidebar" :class="{collapsed}">
-    <button class="toggle-btn" @click="collapsed = !collapsed">
-      {{ collapsed ? '<-' : '->' }}
-    </button>
+  <aside class="sidebar">
      <nav class="nav-list">
+      <div class="sidebar-title">
+        COURSERWORK
+      </div>
+      <div class="sidebar-subtitle">
+        MODULES
+      </div>
       <router-link
         v-for="item in navItems"
         :key="item.name"
@@ -11,28 +14,54 @@
         class="nav-item"
         active-class="active"
       >
-        <span class="label" v-if="!collapsed">{{ item.label }}</span>
+        <span class="label">{{ item.label }}</span>
       </router-link>
     </nav>
+      <hr>
+    <div class="new-module-btn" @click="newModule">
+      <BadgePlus/>
+      <span> new module</span>
+    </div>
+    <div class="new-module-btn" @click="timetable">
+      <Sheet />
+      <span> timetable</span>
+    </div>
+    <div>
+      <span class="label"> {{ val }}</span>
+    </div>
   </aside>
 </template>
 
 <script lang="ts" setup>
-  import { ref } from 'vue';
+  import { BadgePlus, Sheet } from 'lucide-vue-next';
+import { ref } from 'vue';
   
-  const collapsed = ref(false)
 
   const navItems = [
     {name: 'home', label: 'Home', path: '/'},
     {name: 'files', label: 'Files', path: '/files'}
   ]
+
+  const val = ref("")
+  const num = ref(0)
+
+  const newModule = () => {
+    val.value = "new module " + num.value
+    num.value += 1
+  }
+
+  const timetable = () => {
+    val.value = "timetable " + num.value
+    num.value += 1
+  }
+
 </script>
 
-<style>
+<style scoped>
 .sidebar {
   width: 200px;
   background: var(--color-secondary);
-  border-right: 1px solid var(--color-border-3);
+  border-right: 3px solid var(--color-bg-4);
   transition: width 0.2s ease;
   display: flex;
   flex-direction: column;
@@ -40,25 +69,25 @@
   flex-shrink: 0;
 }
 
-.sidebar.collapsed {
-  width: 60px;
+.sidebar-title {
+  margin: 20px  0;
+  color: black;
 }
 
-.toggle-btn {
-  align-self: flex-end;
-  background: none;
-  border: none;
-  padding: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  color: var(--color-text-dark);
+.sidebar{
+  margin: 20px 5px;
+  color: var(--color-text-light);
+  font-size: small;
 }
+
+
 
 .nav-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 0 8px;
+  margin-top: 10px;
 }
 
 .nav-item {
@@ -82,8 +111,29 @@
   color: var(--color-text-dark);
 }
 
-
 .label {
   font-size: 13px;
+}
+
+hr {
+  width: 90%;
+  margin: 20px 10px;
+  color: var(--color-bg-4);
+}
+
+.new-module-btn {
+  display: flex;
+  align-items: center;     
+  cursor: pointer;
+  font-family: inherit;  
+  gap: 10px;
+  margin-left: 0 10px;
+  padding: 8px 10px;
+
+}
+
+.new-module-btn:hover {
+  background-color: var(--color-primary);
+  border-radius: 7px; 
 }
 </style>
