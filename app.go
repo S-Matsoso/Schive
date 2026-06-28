@@ -2,16 +2,34 @@ package main
 
 import (
 	"context"
+	"proj1/controllers"
+	"proj1/services"
+	"proj1/store"
 )
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx                 context.Context
+	ModuleController    *controllers.ModuleController
+	FileController      *controllers.FileController
+	TimetableController *controllers.TimetableController
 }
 
-// NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{}
+	db, err := store.InitDB("schiveApplicationDB.db")
+	if err != nil {
+		panic(err)
+	}
+
+	moduleService := services.NewModuleService(db)
+	fileService := services.NewFileService(db)
+	timeTableService := services.NewTimetableService(db)
+
+	return &App{
+		ModuleController:    controllers.NewModuleController(moduleService),
+		FileController:      controllers.NewFileController(fileService),
+		TimetableController: controllers.NewTimetableController(timeTableService),
+	}
 }
 
 // startup is called when the app starts. The context is saved
@@ -21,8 +39,4 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
-}
-
-func (a *App) AddThree(num float64) float64 {
-	return (num + 3)
 }

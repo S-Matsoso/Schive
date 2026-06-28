@@ -34,6 +34,9 @@ func main() {
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,
+			app.ModuleController,
+			app.FileController,
+			app.TimetableController,
 		},
 	})
 
