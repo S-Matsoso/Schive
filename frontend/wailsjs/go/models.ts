@@ -64,7 +64,7 @@ export namespace models {
 	export class ClassSlot {
 	    id: string;
 	    moduleId: string;
-	    day: string;
+	    "day;; not null": string;
 	    startHour: number;
 	    lengthHrs: number;
 	    room: string;
@@ -77,7 +77,7 @@ export namespace models {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.moduleId = source["moduleId"];
-	        this.day = source["day"];
+	        this["day;; not null"] = source["day;; not null"];
 	        this.startHour = source["startHour"];
 	        this.lengthHrs = source["lengthHrs"];
 	        this.room = source["room"];

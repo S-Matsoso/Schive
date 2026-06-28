@@ -45,12 +45,32 @@
   </v-navigation-drawer>
 
    <v-dialog v-model="dialog" width="auto">
-    <v-card
-      max-width="400"
-      prepend-icon="mdi-update"
-      text="Your application will relaunch automatically after the update is complete."
-      title="Update in progress"
-    >
+    <v-card class="pa-6" max-width="600">
+      <v-form @submit.prevent="handleCreateModule">
+        
+        <v-text-field
+          v-model="moduleData.code"
+          label="Module Code"
+          variant="outlined"
+          :rules="codeRules"
+        ></v-text-field>
+
+        <v-text-field
+          v-model="moduleData.name"
+          label="Module Name"
+          variant="outlined"
+          
+        ></v-text-field>
+
+        <v-text-field
+          v-model="moduleData.color"
+          type="color"
+          label="Module Color"
+          variant="outlined"
+        ></v-text-field>
+
+        <v-btn type="submit" color="black" block>Create Module</v-btn>
+      </v-form>
       <template v-slot:actions>
         <v-btn class="ms-auto" text="Ok" @click="dialog = false"></v-btn>
       </template>
@@ -65,9 +85,22 @@
 <script lang="ts" setup>
   import { ref, onMounted } from 'vue';
   import { NavItems } from '../types';
-  import { GetAllModules } from '../../wailsjs/go/controllers/ModuleController';
+  import { GetAllModules, CreateModule } from '../../wailsjs/go/controllers/ModuleController';
   import {models} from '../../wailsjs/go/models'
 
+  const moduleData = ref(models.Module.createFrom({
+    code: '',
+    name: '',
+    color: '#00000'
+  }))
+
+  const codeRules = [
+  (value:string) => {
+    if (value && value.trim().length > 0) return true
+    return 'Module Code is required.'
+  }
+]
+  
 
   const dialog = ref(false)
   const navItems = ref<NavItems[]|null>(null)
@@ -85,7 +118,21 @@
       isLoading.value = false
 
     } catch (err) {
-      alertMsg.value = "Module created successfully " + (err as string)
+      alertMsg.value = "Failed to get available modules " + (err as string)
+      alertType.value = "error"
+      showAlert.value = true;
+    }
+  }
+
+  async function handleCreateModule(){
+    try {
+      const newModule = await CreateModule(moduleData.value)
+      await fetchModules()
+      alertMsg.value = "Module created successfully "
+      alertType.value = "success"
+      showAlert.value = true;
+    } catch (err){
+      alertMsg.value = "Failed to create module " + (err as string)
       alertType.value = "error"
       showAlert.value = true;
     }

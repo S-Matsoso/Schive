@@ -2,7 +2,7 @@ package models
 
 type Module struct {
 	ID    string `gorm:"primaryKey" json:"id"`
-	Code  string `gorm:"uniqueIndex" json:"code"`
+	Code  string `gorm:"uniqueIndex; not null" json:"code"`
 	Name  string `json:"name"`
 	Color string `json:"color"`
 

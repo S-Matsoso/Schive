@@ -33,8 +33,8 @@ func (c *ModuleController) GetModule(code string) (*models.Module, error) {
 	return m, nil
 }
 
-func (c *ModuleController) CreateModule(code, name, color string) (*models.Module, error) {
-	m, err := c.Service.CreateModule(code, name, color)
+func (c *ModuleController) CreateModule(module models.Module) (*models.Module, error) {
+	m, err := c.Service.CreateModule(&module)
 	if err != nil {
 		fmt.Println("Failed to create a module")
 		return nil, err
@@ -45,7 +45,7 @@ func (c *ModuleController) CreateModule(code, name, color string) (*models.Modul
 func (c *ModuleController) DeleteModule(code string) (string, error) {
 	err := c.Service.DeleteModule(code)
 	if err != nil {
-		return fmt.Sprintln("Failed to delete module %v", code), err
+		return fmt.Sprintf("Failed to delete module %v", code), err
 	}
-	return fmt.Sprintln("Successfully delete module %v", code), nil
+	return fmt.Sprintf("Successfully delete module %v", code), nil
 }

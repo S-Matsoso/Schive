@@ -31,29 +31,27 @@ func (s *ModuleService) GetModule(code string) (*models.Module, error) {
 	return &module, err
 }
 
-func (s *ModuleService) CreateModule(code, name, color string) (*models.Module, error) {
+func (s *ModuleService) CreateModule(newModule *models.Module) (*models.Module, error) {
 	existing, err := s.GetAllModules()
 	if err != nil {
 		return &models.Module{}, err
 	}
 	for _, m := range existing {
-		if m.Code == code {
+		if m.Code == newModule.Code {
 			return &models.Module{}, errors.New("module with this code already exists")
 		}
 	}
 
 	module := models.Module{
 		ID:    uuid.NewString(),
-		Code:  code,
-		Name:  name,
-		Color: color,
+		Code:  newModule.Code,
+		Name:  newModule.Name,
+		Color: newModule.Color,
 	}
 
 	res := s.DB.Create(module)
-	if err != nil {
-		return &models.Module{}, res.Error
-	}
-	return &module, nil
+
+	return &module, res.Error
 }
 
 func (s *ModuleService) DeleteModule(code string) error {
