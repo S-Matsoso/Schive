@@ -8,25 +8,17 @@
       <div class="sidebar-subtitle">
         MODULES
       </div>
-      <router-link
-        v-for="item in navItems"
-        :key="item.name"
-        :to="item.path"
-        class="nav-item"
-        active-class="active"
-      >
-        <span class="label">{{ item.label }}</span>
-      </router-link>
       <div v-if="isLoading" class="px-3 py-1 text-caption text-grey">Loading...</div>
       <router-link
         v-for="mod in modules"
         :key="mod.id"
-        :to="`/module/${mod.id}`"
+        :to="`/module/${mod.code}`"
         class="nav-item"
         active-class="active"
       >
         <span class="module-dot" :style="{ backgroundColor: mod.color }"></span>
-        <span class="label">{{ mod.code }}</span>
+        <span v-if="mod.name.trim().length == 0"  class="label">{{ mod.code }}</span>
+        <span v-else class="label">{{ mod.name }}</span>
       </router-link>
     </nav>
 
@@ -44,38 +36,48 @@
 
   </v-navigation-drawer>
 
-   <v-dialog v-model="dialog" width="auto">
-    <v-card class="pa-6" max-width="600">
-      <v-form @submit.prevent="handleCreateModule">
-        
-        <v-text-field
-          v-model="moduleData.code"
-          label="Module Code"
-          variant="outlined"
-          :rules="codeRules"
-        ></v-text-field>
+  <v-dialog persistent v-model="dialog" width="420">
+  <v-card class="pa-6 rounded-lg" elevation="4">
+    <h3 class="text-h6 font-weight-medium mb-4">New module</h3>
 
-        <v-text-field
-          v-model="moduleData.name"
-          label="Module Name"
-          variant="outlined"
-          
-        ></v-text-field>
+    <v-form @submit.prevent="handleCreateModule">
+      <v-text-field
+        v-model="moduleData.code"
+        label="Module code"
+        variant="outlined"
+        :rules="codeRules"
+        density="comfortable"
+        class="mb-2"
+      ></v-text-field>
 
-        <v-text-field
-          v-model="moduleData.color"
-          type="color"
-          label="Module Color"
-          variant="outlined"
-        ></v-text-field>
+      <v-text-field
+        v-model="moduleData.name"
+        label="Module name"
+        variant="outlined"
+        density="comfortable"
+        class="mb-2"
+      ></v-text-field>
 
-        <v-btn type="submit" color="black" block>Create Module</v-btn>
-      </v-form>
-      <template v-slot:actions>
-        <v-btn class="ms-auto" text="Ok" @click="dialog = false"></v-btn>
-      </template>
-    </v-card>
-  </v-dialog>
+      <v-text-field
+        v-model="moduleData.color"
+        type="color"
+        label="Module color"
+        variant="outlined"
+        density="comfortable"
+        class="mb-4"
+      ></v-text-field>
+
+      <div class="d-flex gap-2 justify-end">
+        <v-btn variant="text" @click="handleCancelCreateModule">
+          Cancel
+        </v-btn>
+        <v-btn type="submit" color="color-bg-2" class="hover:" variant="flat">
+          Create module
+        </v-btn>
+      </div>
+    </v-form>
+  </v-card>
+</v-dialog>
 
   <v-snackbar v-model="showAlert" :color="alertType" timeout="3000">
     {{ alertMsg }}
@@ -128,6 +130,7 @@
     try {
       const newModule = await CreateModule(moduleData.value)
       await fetchModules()
+      handleCancelCreateModule()
       alertMsg.value = "Module created successfully "
       alertType.value = "success"
       showAlert.value = true;
@@ -138,6 +141,13 @@
     }
   }
 
+  function handleCancelCreateModule(){
+    dialog.value = false
+    moduleData.value.code = ''
+    moduleData.value.name = ''
+    moduleData.value.color = "#00000"
+  }
+
   const timetable = () => {
     console.log("12")
   }
@@ -146,10 +156,10 @@
     fetchModules()
   })
   
-  console.log("Modules ", modules)
 </script>
 
 <style scoped>
+
 .custom-sidebar {
   background-color: var(--color-secondary) !important;
   border-right: 3px solid var(--color-bg-4) !important;
@@ -232,4 +242,11 @@ hr {
   background-color: var(--color-primary);
   border-radius: 7px; 
 }
+
+.dialog-btns{
+  flex: auto;
+  flex-direction: row;
+  gap: 20px;
+}
+
 </style>

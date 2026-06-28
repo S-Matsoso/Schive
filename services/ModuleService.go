@@ -27,7 +27,7 @@ func (s *ModuleService) GetAllModules() ([]models.Module, error) {
 func (s *ModuleService) GetModule(code string) (*models.Module, error) {
 	var module models.Module
 	err := s.DB.Preload("Files").Preload("ClassSlots").
-		Preload("Assignments").First(&models.Module{}, code).Error
+		Preload("Assignments").Where("code = ?", code).First(&module).Error
 	return &module, err
 }
 
