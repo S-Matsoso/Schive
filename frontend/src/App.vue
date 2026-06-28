@@ -1,30 +1,26 @@
-
 <template>
-  <div class="app-layout">
+  <v-app>
+  <v-layout>
     <SideBar />
-    <main class="main-content">
-      <router-view />
-    </main>
-  </div>
-</template>
+    <v-main>
+      <div class="page-container">
+        <router-view />
+      </div>
 
+    </v-main>
+  </v-layout>
+  </v-app>
+</template>
 
 <script setup>
   import SideBar from './components/SideBar.vue';
 </script>
 
-<style scoped>
-.app-layout {
-  color: var(--color-text-dark);
-  display: flex;
-  height: 100vh;
-}
-
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: none;
+<style>
+.page-container {
   padding: 24px;
+  height: 100%;
+  width: 100%;
 }
 
 </style>
