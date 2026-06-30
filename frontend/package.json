@@ -11,6 +11,7 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "vue": "^3.2.37",
+    "vue-cal": "^5.0.1-rc.46",
     "vue-router": "^4.6.4",
     "vuetify": "^4.1.2"
   },

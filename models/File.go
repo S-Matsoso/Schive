@@ -7,4 +7,5 @@ type File struct {
 	Name         string  `json:"name"`
 	Path         string  `json:"path"`
 	FileType     string  `json:"fileType"` // "pdf" | "docx" etc.
+	Data         []byte  `gorm:"type:bytes" json:"-`
 }

@@ -7,6 +7,7 @@ export namespace models {
 	    name: string;
 	    path: string;
 	    fileType: string;
+	    Data: number[];
 	
 	    static createFrom(source: any = {}) {
 	        return new File(source);
@@ -20,6 +21,7 @@ export namespace models {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	        this.fileType = source["fileType"];
+	        this.Data = source["Data"];
 	    }
 	}
 	export class Assignment {

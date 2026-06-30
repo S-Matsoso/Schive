@@ -1,11 +1,11 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import Home from '../views/Home.vue'
+import Timetable from '../views/Timetable.vue'
 
 const routes = [
     {
         path: '/',
         name: 'home',
-        component: Home,
+        component: Timetable,
     },
     {
         path: '/module/:code',
