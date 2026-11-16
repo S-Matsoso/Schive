@@ -25,15 +25,27 @@
     
     <hr>
     
-    <v-btn variant="text" prepend-icon="mdi-plus-circle-outline" class="new-module-btn" @click="dialog = true">
-    new module
-    </v-btn>
-    <v-btn to="/timetable" variant="text" prepend-icon="mdi-table-large" class="new-module-btn" @click="timetable">
-      timetable
-    </v-btn>
-    
-   
+    <div class="sidebar-actions d-flex flex-column ga-1">
+      <v-btn
+        variant="text"
+        block
+        prepend-icon="mdi-plus-circle-outline"
+        class="new-module-btn"
+        @click="dialog = true"
+      >
+        new module
+      </v-btn>
 
+      <v-btn
+        to="/timetable"
+        variant="text"
+        block
+        prepend-icon="mdi-table-large"
+        class="new-module-btn"
+      >
+        timetable
+      </v-btn>
+    </div>
   </v-navigation-drawer>
 
   <v-dialog persistent v-model="dialog" width="420">
@@ -232,13 +244,26 @@ hr {
 }
 
 .new-module-btn {
-  display: flex;
-  align-items: center;     
-  cursor: pointer;
-  font-family: inherit;  
-  gap: 10px;
-  margin: 0 10px; 
-  padding: 8px 10px;
+  justify-content: flex-start;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 15px;
+  font-weight: 500;
+  height: 40px;
+  padding: 0 16px;
+  opacity: 1;
+}
+
+.new-module-btn.v-btn--active,
+.new-module-btn.router-link-active {
+  opacity: 1;
+}
+.new-module-btn.v-btn--active .v-btn__overlay {
+  opacity: 0.08;
+}
+
+.new-module-btn :deep(.v-btn__prepend) {
+  margin-inline: 0 12px;
 }
 
 .new-module-btn:hover {
