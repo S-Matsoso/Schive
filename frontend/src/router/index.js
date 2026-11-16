@@ -4,13 +4,18 @@ import Timetable from '../views/Timetable.vue'
 const routes = [
     {
         path: '/',
-        name: 'home',
+        alias: '/timetable',
+        name: 'timetable',
         component: Timetable,
     },
     {
         path: '/module/:code',
         name: 'module-details',
         component: () => import('../views/ModuleDetails.vue')
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/'
     }
 ]
 

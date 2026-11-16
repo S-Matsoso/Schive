@@ -28,7 +28,7 @@
     <v-btn variant="text" prepend-icon="mdi-plus-circle-outline" class="new-module-btn" @click="dialog = true">
     new module
     </v-btn>
-    <v-btn variant="text" prepend-icon="mdi-table-large" class="new-module-btn" @click="timetable">
+    <v-btn to="/timetable" variant="text" prepend-icon="mdi-table-large" class="new-module-btn" @click="timetable">
       timetable
     </v-btn>
     
@@ -86,6 +86,7 @@
 
 <script lang="ts" setup>
   import { ref, onMounted } from 'vue';
+  import { useRouter } from 'vue-router';
   import { NavItems } from '../types';
   import { GetAllModules, CreateModule } from '../../wailsjs/go/controllers/ModuleController';
   import {models} from '../../wailsjs/go/models'
@@ -148,8 +149,10 @@
     moduleData.value.color = "#00000"
   }
 
+  const router = useRouter()
+
   const timetable = () => {
-    console.log("12")
+    router.push('/timetable')
   }
 
   onMounted(()=>{
