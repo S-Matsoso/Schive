@@ -6,3 +6,4 @@ frontend/dist
 .vscode/
 schiveApplicationDB.db
 backups/
+.freebuff/
