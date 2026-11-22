@@ -19,10 +19,10 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:     "Schive",
-		Width:     640,
-		Height:    480,
-		MinWidth:  624,
-		MinHeight: 441,
+		Width:     1080,
+		Height:    720,
+		MinWidth:  768,
+		MinHeight: 520,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -39,6 +39,9 @@ func main() {
 			app.ModuleController,
 			app.FileController,
 			app.TimetableController,
+			app.AssignmentController,
+			app.FlashcardController,
+			app.BackupController,
 		},
 	})
 

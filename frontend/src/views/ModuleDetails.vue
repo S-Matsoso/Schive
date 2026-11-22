@@ -2,7 +2,7 @@
   <div class="module-details-page pa-6">
     <!-- Module Header -->
     <v-card v-if="currentModule" class="pa-6 rounded-lg mb-6" elevation="2">
-      <div class="d-flex justify-space-between align-center">
+      <div class="d-flex justify-space-between align-center flex-wrap ga-3">
         <div>
           <div class="d-flex align-center ga-3 mb-1">
             <span
@@ -18,9 +18,18 @@
           </h2>
         </div>
 
-        <div class="d-flex ga-2">
+        <div class="d-flex ga-2 flex-wrap">
+          <v-chip color="color-bg-2" variant="tonal" prepend-icon="mdi-folder-multiple">
+            {{ folders.length }} {{ folders.length === 1 ? 'folder' : 'folders' }}
+          </v-chip>
           <v-chip color="color-bg-2" variant="tonal" prepend-icon="mdi-file-document-multiple">
             {{ files.length }} {{ files.length === 1 ? 'file' : 'files' }}
+          </v-chip>
+          <v-chip color="warning" variant="tonal" prepend-icon="mdi-clipboard-text-clock-outline">
+            {{ assignments.length }} tasks
+          </v-chip>
+          <v-chip color="info" variant="tonal" prepend-icon="mdi-cards-outline">
+            {{ flashcards.length }} cards
           </v-chip>
         </div>
       </div>
@@ -31,243 +40,1001 @@
       <p class="mt-4 text-grey">Loading module data...</p>
     </v-card>
 
-    <!-- Files Section -->
-    <div v-if="currentModule" class="files-container">
-      <!-- Toolbar -->
-      <div class="d-flex flex-wrap justify-space-between align-center ga-4 mb-4">
-        <div class="d-flex align-center ga-3">
-          <h2 class="text-h6 font-weight-bold">Module Files</h2>
-          <v-chip size="small" variant="flat" color="color-bg-3" class="text-grey-darken-3 font-weight-medium">
-            {{ filteredFiles.length }}
+    <!-- Main Navigation Tabs -->
+    <div v-if="currentModule" class="content-container">
+      <v-tabs v-model="activeTab" color="color-bg-2" class="mb-4 module-tabs" rounded="lg">
+        <v-tab value="files" prepend-icon="mdi-folder-multiple-outline" class="text-none font-weight-bold">
+          Files & Folders
+          <v-chip size="x-small" class="ms-2 font-weight-bold" variant="flat">{{ files.length }}</v-chip>
+        </v-tab>
+        <v-tab value="assignments" prepend-icon="mdi-clipboard-text-clock-outline" class="text-none font-weight-bold">
+          Assignments
+          <v-chip size="x-small" color="warning" class="ms-2 font-weight-bold" variant="flat">{{ pendingAssignmentsCount }}</v-chip>
+        </v-tab>
+        <v-tab value="flashcards" prepend-icon="mdi-cards-outline" class="text-none font-weight-bold">
+          Flashcards
+          <v-chip size="x-small" color="info" class="ms-2 font-weight-bold" variant="flat">{{ flashcards.length }}</v-chip>
+        </v-tab>
+      </v-tabs>
+
+      <v-window v-model="activeTab">
+        <!-- ==================== TAB 1: FILES & FOLDERS ==================== -->
+        <v-window-item value="files">
+          <!-- Breadcrumb Navigation Bar -->
+          <v-card class="pa-3 mb-4 rounded-lg d-flex align-center justify-space-between flex-wrap ga-2" variant="flat" color="color-bg-3">
+            <div class="d-flex align-center ga-2 flex-wrap">
+              <v-btn
+                variant="text"
+                size="small"
+                class="text-none font-weight-bold px-2"
+                :class="{ 'text-primary': !selectedFolderId }"
+                prepend-icon="mdi-home-outline"
+                @click="selectedFolderId = null"
+              >
+                All Files & Folders
+              </v-btn>
+
+              <template v-if="currentFolder">
+                <v-icon icon="mdi-chevron-right" size="18" color="grey"></v-icon>
+                <v-chip
+                  color="color-bg-2"
+                  variant="flat"
+                  prepend-icon="mdi-folder-open"
+                  class="font-weight-bold"
+                >
+                  {{ currentFolder.name }}
+                </v-chip>
+
+                <v-btn
+                  variant="text"
+                  size="small"
+                  class="text-none text-caption text-grey-darken-2 ms-2"
+                  prepend-icon="mdi-arrow-left"
+                  @click="selectedFolderId = null"
+                >
+                  Back to root
+                </v-btn>
+              </template>
+            </div>
+
+            <!-- Upload Button -->
+            <div class="d-flex align-center ga-2">
+              <v-btn
+                prepend-icon="mdi-upload"
+                variant="flat"
+                size="small"
+                class="upload-btn text-none font-weight-medium rounded-lg"
+                :loading="isUploading"
+                @click="triggerFileInput"
+              >
+                Upload to {{ currentFolder ? currentFolder.name : 'Module' }}
+              </v-btn>
+            </div>
+          </v-card>
+
+          <!-- FOLDERS SECTION (visible at root view) -->
+          <div v-if="!selectedFolderId" class="folders-section mb-6">
+            <div class="d-flex justify-space-between align-center mb-3">
+              <div class="d-flex align-center ga-2">
+                <h2 class="text-subtitle-1 font-weight-bold">Folders</h2>
+                <v-chip size="x-small" variant="flat" color="color-bg-3" class="font-weight-medium">
+                  {{ folders.length }}
+                </v-chip>
+              </div>
+            </div>
+
+            <div v-if="isLoadingFolders" class="py-4 text-center">
+              <v-progress-circular indeterminate size="24" color="color-bg-2"></v-progress-circular>
+            </div>
+
+            <div v-else class="folders-grid">
+              <!-- Folder Card -->
+              <v-card
+                v-for="folder in folders"
+                :key="folder.id"
+                class="folder-card pa-3 rounded-lg d-flex align-center justify-space-between cursor-pointer"
+                elevation="1"
+                @click="openFolder(folder.id)"
+              >
+                <div class="d-flex align-center ga-3 overflow-hidden me-2">
+                  <v-icon icon="mdi-folder" size="36" color="color-bg-2"></v-icon>
+                  <div class="overflow-hidden">
+                    <div class="font-weight-bold text-truncate text-body-2" :title="folder.name">
+                      {{ folder.name }}
+                    </div>
+                    <div class="text-caption text-grey">
+                      {{ folder.fileCount }} {{ folder.fileCount === 1 ? 'file' : 'files' }}
+                    </div>
+                  </div>
+                </div>
+
+                <v-btn
+                  icon="mdi-delete-outline"
+                  size="x-small"
+                  variant="text"
+                  color="grey-darken-1"
+                  title="Delete folder"
+                  @click.stop="confirmDeleteFolder(folder)"
+                ></v-btn>
+              </v-card>
+
+              <!-- Add Folder Quick Card -->
+              <div
+                class="add-folder-card pa-3 rounded-lg d-flex align-center justify-center ga-2 cursor-pointer"
+                @click="openCreateFolderDialog"
+              >
+                <v-icon icon="mdi-plus" color="color-bg-2"></v-icon>
+                <span class="text-body-2 font-weight-medium text-grey-darken-2">Add Folder</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FILES SECTION -->
+          <div class="files-container">
+            <!-- Toolbar -->
+            <div class="d-flex flex-wrap justify-space-between align-center ga-4 mb-4">
+              <div class="d-flex align-center ga-3 flex-wrap">
+                <h2 class="text-subtitle-1 font-weight-bold">
+                  {{ currentFolder ? currentFolder.name + ' Files' : 'All Module Files' }}
+                </h2>
+                <v-chip size="x-small" variant="flat" color="color-bg-3" class="text-grey-darken-3 font-weight-medium">
+                  {{ displayedFiles.length }}
+                </v-chip>
+
+                <!-- Unfiled filter toggle at root -->
+                <v-btn-toggle
+                  v-if="!selectedFolderId && folders.length > 0"
+                  v-model="rootFilterMode"
+                  mandatory
+                  density="compact"
+                  rounded="lg"
+                  variant="outlined"
+                  class="filter-toggle"
+                >
+                  <v-btn value="all" size="x-small" class="text-none">All</v-btn>
+                  <v-btn value="unfiled" size="x-small" class="text-none">Unsorted only</v-btn>
+                </v-btn-toggle>
+              </div>
+
+              <div class="d-flex align-center ga-3 flex-wrap">
+                <!-- Search input -->
+                <v-text-field
+                  v-if="files.length > 0"
+                  v-model="searchQuery"
+                  prepend-inner-icon="mdi-magnify"
+                  placeholder="Search files..."
+                  density="compact"
+                  variant="outlined"
+                  rounded="lg"
+                  hide-details
+                  clearable
+                  style="width: 220px;"
+                ></v-text-field>
+
+                <!-- Grid / List Toggle -->
+                <v-btn-toggle
+                  v-model="viewMode"
+                  mandatory
+                  divided
+                  rounded="lg"
+                  variant="outlined"
+                  class="view-toggle"
+                >
+                  <v-btn value="grid" icon="mdi-view-grid" title="Grid View"></v-btn>
+                  <v-btn value="list" icon="mdi-format-list-bulleted" title="List View"></v-btn>
+                </v-btn-toggle>
+
+                <!-- Hidden File Input -->
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  multiple
+                  style="display: none;"
+                  @change="handleFileSelected"
+                />
+              </div>
+            </div>
+
+            <!-- Drag & Drop Overlay -->
+            <div
+              v-if="isDragging"
+              class="drag-overlay pa-8 rounded-lg text-center mb-6"
+              @dragover.prevent
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="handleDrop"
+            >
+              <v-icon icon="mdi-cloud-upload" size="48" color="color-bg-2" class="mb-2"></v-icon>
+              <div class="text-subtitle-1 font-weight-bold">
+                Drop files here to upload to {{ currentFolder ? currentFolder.name : currentModule.code }}
+              </div>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="isLoadingFiles" class="py-12 text-center">
+              <v-progress-circular indeterminate color="color-bg-2"></v-progress-circular>
+              <p class="mt-3 text-caption text-grey">Loading files...</p>
+            </div>
+
+            <!-- Empty State -->
+            <v-card
+              v-else-if="displayedFiles.length === 0"
+              class="pa-12 text-center rounded-lg empty-card"
+              variant="tonal"
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="handleDrop"
+            >
+              <v-icon icon="mdi-folder-open-outline" size="56" color="grey" class="mb-3"></v-icon>
+              <h3 class="text-h6 font-weight-medium mb-1">
+                {{ currentFolder ? `No files in folder "${currentFolder.name}" yet` : `No files yet for ${currentModule.code}` }}
+              </h3>
+              <p class="text-body-2 text-grey-darken-1 mb-4">
+                Upload files like documents, notes, or PDFs, or drag and drop files here.
+              </p>
+              <v-btn
+                prepend-icon="mdi-upload"
+                variant="flat"
+                class="upload-btn text-none rounded-lg"
+                @click="triggerFileInput"
+              >
+                Upload File
+              </v-btn>
+            </v-card>
+
+            <!-- No Search Results State -->
+            <div v-else-if="searchQuery && displayedFiles.length === 0" class="py-8 text-center text-grey">
+              <v-icon icon="mdi-file-search-outline" size="36" class="mb-2"></v-icon>
+              <p>No files match "{{ searchQuery }}"</p>
+            </div>
+
+            <!-- GRID VIEW -->
+            <div v-else-if="viewMode === 'grid'" class="files-grid">
+              <v-card
+                v-for="file in displayedFiles"
+                :key="file.id"
+                class="file-card pa-4 rounded-lg d-flex flex-column justify-space-between"
+                elevation="2"
+                @click="handleOpenFile(file.id)"
+              >
+                <div>
+                  <div class="d-flex justify-space-between align-start mb-2">
+                    <v-icon
+                      :icon="getFileInfo(file.fileType).icon"
+                      :color="getFileInfo(file.fileType).color"
+                      size="40"
+                    ></v-icon>
+                    <div class="d-flex align-center ga-1 flex-wrap justify-end">
+                      <v-chip
+                        v-if="!selectedFolderId && getFolderName(file.folderId)"
+                        size="x-small"
+                        variant="tonal"
+                        color="color-bg-2"
+                        prepend-icon="mdi-folder-outline"
+                        class="font-weight-medium cursor-pointer"
+                        title="Click to view folder"
+                        @click.stop="openFolder(file.folderId)"
+                      >
+                        {{ getFolderName(file.folderId) }}
+                      </v-chip>
+                      <v-chip
+                        size="x-small"
+                        variant="tonal"
+                        :color="getFileInfo(file.fileType).color"
+                        class="font-weight-bold"
+                      >
+                        {{ getFileInfo(file.fileType).label }}
+                      </v-chip>
+                    </div>
+                  </div>
+
+                  <div class="file-name font-weight-bold mb-1" :title="file.name">
+                    {{ file.name }}
+                  </div>
+
+                  <div class="text-caption text-grey">
+                    <div>{{ formatFileSize(file.fileSize) }} • Uploaded {{ formatDate(file.createdAt) }}</div>
+                    <div
+                      v-if="isEditable(file.fileType)"
+                      class="mt-1 d-flex align-center ga-1 text-primary font-weight-medium modification-date"
+                      :title="'Last modified: ' + formatDateTime(file.updatedAt || file.createdAt)"
+                    >
+                      <v-icon icon="mdi-file-document-edit-outline" size="14"></v-icon>
+                      <span>Modified: {{ formatDateTime(file.updatedAt || file.createdAt) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="file-card-actions d-flex justify-space-between align-center mt-3 pt-2 border-top">
+                  <div class="d-flex ga-1">
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      prepend-icon="mdi-open-in-new"
+                      color="color-bg-2"
+                      class="text-none px-2"
+                      title="Open in default application"
+                      @click.stop="handleOpenFile(file.id)"
+                    >
+                      Open
+                    </v-btn>
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      icon="mdi-eye-outline"
+                      color="info"
+                      title="Quick Preview"
+                      @click.stop="openPreview(file)"
+                    ></v-btn>
+                  </div>
+
+                  <div class="d-flex ga-1">
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      icon="mdi-pencil-outline"
+                      color="grey-darken-2"
+                      title="Rename file"
+                      @click.stop="openRenameDialog(file)"
+                    ></v-btn>
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      icon="mdi-folder-move-outline"
+                      color="grey-darken-2"
+                      title="Move to folder"
+                      @click.stop="openMoveDialog(file)"
+                    ></v-btn>
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      icon="mdi-delete-outline"
+                      color="error"
+                      title="Delete File"
+                      @click.stop="confirmDeleteFile(file)"
+                    ></v-btn>
+                  </div>
+                </div>
+              </v-card>
+            </div>
+
+            <!-- LIST VIEW -->
+            <v-card v-else class="rounded-lg overflow-hidden" elevation="2">
+              <v-table hover>
+                <thead>
+                  <tr>
+                    <th style="width: 44px;"></th>
+                    <th>Name</th>
+                    <th v-if="!selectedFolderId" style="width: 140px;">Folder</th>
+                    <th style="width: 100px;">Type</th>
+                    <th style="width: 100px;">Size</th>
+                    <th style="width: 140px;">Date Uploaded</th>
+                    <th style="width: 190px;">Last Modified</th>
+                    <th style="width: 170px;" class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="file in displayedFiles"
+                    :key="file.id"
+                    class="file-table-row cursor-pointer"
+                    @click="handleOpenFile(file.id)"
+                  >
+                    <td>
+                      <v-icon
+                        :icon="getFileInfo(file.fileType).icon"
+                        :color="getFileInfo(file.fileType).color"
+                        size="26"
+                      ></v-icon>
+                    </td>
+                    <td>
+                      <span class="font-weight-medium">{{ file.name }}</span>
+                    </td>
+                    <td v-if="!selectedFolderId">
+                      <v-chip
+                        v-if="getFolderName(file.folderId)"
+                        size="x-small"
+                        variant="tonal"
+                        color="color-bg-2"
+                        prepend-icon="mdi-folder-outline"
+                        class="cursor-pointer"
+                        @click.stop="openFolder(file.folderId)"
+                      >
+                        {{ getFolderName(file.folderId) }}
+                      </v-chip>
+                      <span v-else class="text-caption text-grey">—</span>
+                    </td>
+                    <td>
+                      <v-chip
+                        size="x-small"
+                        variant="tonal"
+                        :color="getFileInfo(file.fileType).color"
+                        class="font-weight-bold"
+                      >
+                        {{ getFileInfo(file.fileType).label }}
+                      </v-chip>
+                    </td>
+                    <td class="text-caption text-grey-darken-1">
+                      {{ formatFileSize(file.fileSize) }}
+                    </td>
+                    <td class="text-caption text-grey-darken-1">
+                      {{ formatDate(file.createdAt) }}
+                    </td>
+                    <td class="text-caption">
+                      <div
+                        v-if="isEditable(file.fileType)"
+                        class="font-weight-medium text-primary d-flex align-center ga-1"
+                      >
+                        <v-icon icon="mdi-file-document-edit-outline" size="14"></v-icon>
+                        <span>{{ formatDateTime(file.updatedAt || file.createdAt) }}</span>
+                      </div>
+                      <span v-else class="text-grey-darken-1">
+                        {{ formatDate(file.updatedAt || file.createdAt) }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <v-btn
+                        icon="mdi-eye-outline"
+                        variant="text"
+                        size="small"
+                        color="info"
+                        title="Quick preview"
+                        @click.stop="openPreview(file)"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-pencil-outline"
+                        variant="text"
+                        size="small"
+                        color="grey-darken-2"
+                        title="Rename file"
+                        @click.stop="openRenameDialog(file)"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-folder-move-outline"
+                        variant="text"
+                        size="small"
+                        color="grey-darken-2"
+                        title="Move to folder"
+                        @click.stop="openMoveDialog(file)"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-delete-outline"
+                        variant="text"
+                        size="small"
+                        color="error"
+                        title="Delete file"
+                        @click.stop="confirmDeleteFile(file)"
+                      ></v-btn>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card>
+          </div>
+        </v-window-item>
+
+        <!-- ==================== TAB 2: ASSIGNMENTS ==================== -->
+        <v-window-item value="assignments">
+          <div class="assignments-tab">
+            <!-- Assignments Toolbar -->
+            <div class="d-flex justify-space-between align-center flex-wrap ga-3 mb-4">
+              <div class="d-flex align-center ga-2">
+                <v-btn-toggle
+                  v-model="assignmentFilter"
+                  mandatory
+                  density="compact"
+                  rounded="lg"
+                  variant="outlined"
+                  class="filter-toggle"
+                >
+                  <v-btn value="all" size="small" class="text-none">All ({{ assignments.length }})</v-btn>
+                  <v-btn value="pending" size="small" class="text-none">Pending</v-btn>
+                  <v-btn value="in_progress" size="small" class="text-none">In Progress</v-btn>
+                  <v-btn value="completed" size="small" class="text-none">Completed</v-btn>
+                </v-btn-toggle>
+              </div>
+
+              <v-btn
+                prepend-icon="mdi-plus"
+                color="color-bg-2"
+                variant="flat"
+                class="text-none font-weight-medium rounded-lg"
+                @click="openCreateAssignmentDialog"
+              >
+                New Assignment
+              </v-btn>
+            </div>
+
+            <!-- Empty State -->
+            <v-card v-if="filteredAssignments.length === 0" class="pa-12 text-center rounded-lg" variant="tonal">
+              <v-icon icon="mdi-clipboard-check-outline" size="56" color="grey" class="mb-3"></v-icon>
+              <h3 class="text-h6 font-weight-medium mb-1">No assignments found</h3>
+              <p class="text-body-2 text-grey mb-4">Track homework, lab reports, and coursework deadlines for this module.</p>
+              <v-btn color="color-bg-2" variant="flat" prepend-icon="mdi-plus" class="text-none rounded-lg" @click="openCreateAssignmentDialog">
+                Create Assignment
+              </v-btn>
+            </v-card>
+
+            <!-- Assignments List -->
+            <div v-else class="d-flex flex-column ga-3">
+              <v-card
+                v-for="assign in filteredAssignments"
+                :key="assign.id"
+                class="pa-4 rounded-lg d-flex justify-space-between align-center flex-wrap ga-3"
+                elevation="1"
+              >
+                <div>
+                  <div class="d-flex align-center ga-2 flex-wrap">
+                    <span class="font-weight-bold text-subtitle-1">{{ assign.title }}</span>
+                    <v-chip v-if="assign.assignmentNumber" size="x-small" variant="tonal" color="grey">
+                      #{{ assign.assignmentNumber }}
+                    </v-chip>
+                    <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
+                      {{ assign.priority }}
+                    </v-chip>
+                    <v-chip size="x-small" :color="getStatusColor(assign.status)" variant="tonal" class="text-uppercase font-weight-medium">
+                      {{ assign.status }}
+                    </v-chip>
+                  </div>
+
+                  <p v-if="assign.description" class="text-body-2 text-grey-darken-1 mt-1 mb-0">
+                    {{ assign.description }}
+                  </p>
+
+                  <div class="text-caption text-grey mt-2 d-flex align-center ga-3">
+                    <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign.dueDate) ? 'text-error' : 'text-primary'">
+                      <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
+                      Due: {{ formatDueDateDisplay(assign.dueDate) }}
+                    </span>
+                    <span>Created {{ formatDate(assign.createdAt) }}</span>
+                  </div>
+
+                  <div class="mt-2" style="min-width: 240px; max-width: 360px;">
+                    <div class="d-flex justify-space-between text-caption mb-1">
+                      <span class="text-grey">Progress</span>
+                      <span class="font-weight-bold">{{ assign.progress || 0 }}%</span>
+                    </div>
+                    <v-progress-linear
+                      :model-value="assign.progress || 0"
+                      :color="getProgressColor(assign.progress)"
+                      height="6"
+                      rounded
+                    ></v-progress-linear>
+                  </div>
+                </div>
+
+                <!-- Assignment Actions -->
+                <div class="d-flex align-center ga-2">
+                  <v-btn
+                    size="small"
+                    variant="tonal"
+                    color="color-bg-2"
+                    prepend-icon="mdi-progress-pencil"
+                    class="text-none"
+                    @click="openProgressDialog(assign)"
+                  >
+                    Progress
+                  </v-btn>
+                  <v-btn
+                    v-if="assign.status !== 'completed'"
+                    size="small"
+                    variant="tonal"
+                    color="success"
+                    prepend-icon="mdi-check"
+                    class="text-none"
+                    @click="updateStatus(assign.id, 'completed')"
+                  >
+                    Done
+                  </v-btn>
+                  <v-btn
+                    v-else
+                    size="small"
+                    variant="text"
+                    color="grey"
+                    prepend-icon="mdi-undo"
+                    class="text-none"
+                    @click="updateStatus(assign.id, 'pending')"
+                  >
+                    Reopen
+                  </v-btn>
+
+                  <v-btn
+                    icon="mdi-pencil-outline"
+                    size="small"
+                    variant="text"
+                    title="Edit assignment"
+                    @click="openEditAssignmentDialog(assign)"
+                  ></v-btn>
+                  <v-btn
+                    icon="mdi-delete-outline"
+                    size="small"
+                    variant="text"
+                    color="error"
+                    title="Delete assignment"
+                    @click="confirmDeleteAssignment(assign)"
+                  ></v-btn>
+                </div>
+              </v-card>
+            </div>
+          </div>
+        </v-window-item>
+
+        <!-- ==================== TAB 3: FLASHCARDS ==================== -->
+        <v-window-item value="flashcards">
+          <div class="flashcards-tab">
+            <!-- Flashcards Toolbar -->
+            <div class="d-flex justify-space-between align-center flex-wrap ga-3 mb-4">
+              <div class="d-flex align-center ga-3">
+                <v-chip color="info" variant="tonal" prepend-icon="mdi-cards-outline" class="font-weight-medium">
+                  {{ flashcards.length }} {{ flashcards.length === 1 ? 'Card' : 'Cards' }}
+                </v-chip>
+                <v-chip color="success" variant="tonal" prepend-icon="mdi-check-decagram-outline" class="font-weight-medium">
+                  {{ masteredFlashcardsCount }} Mastered
+                </v-chip>
+              </div>
+
+              <div class="d-flex ga-2">
+                <v-btn
+                  v-if="flashcards.length > 0"
+                  color="color-bg-2"
+                  variant="flat"
+                  prepend-icon="mdi-play-circle-outline"
+                  class="text-none font-weight-medium rounded-lg"
+                  @click="startStudySession"
+                >
+                  Study Deck
+                </v-btn>
+                <v-btn
+                  prepend-icon="mdi-plus"
+                  variant="outlined"
+                  class="text-none font-weight-medium rounded-lg"
+                  @click="openCreateFlashcardDialog"
+                >
+                  Add Card
+                </v-btn>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <v-card v-if="flashcards.length === 0" class="pa-12 text-center rounded-lg" variant="tonal">
+              <v-icon icon="mdi-cards-outline" size="56" color="grey" class="mb-3"></v-icon>
+              <h3 class="text-h6 font-weight-medium mb-1">No flashcards yet</h3>
+              <p class="text-body-2 text-grey mb-4">Create questions and answers to review key concepts and study for exams.</p>
+              <v-btn color="color-bg-2" variant="flat" prepend-icon="mdi-plus" class="text-none rounded-lg" @click="openCreateFlashcardDialog">
+                Create First Flashcard
+              </v-btn>
+            </v-card>
+
+            <!-- Flashcards Grid -->
+            <div v-else class="flashcards-grid">
+              <v-card
+                v-for="card in flashcards"
+                :key="card.id"
+                class="flashcard-preview-card pa-4 rounded-lg d-flex flex-column justify-space-between"
+                :class="{ 'card-mastered': card.mastered }"
+                elevation="1"
+              >
+                <div>
+                  <div class="d-flex justify-space-between align-center mb-2">
+                    <v-chip
+                      size="x-small"
+                      :color="card.mastered ? 'success' : 'grey'"
+                      variant="flat"
+                      class="font-weight-bold"
+                    >
+                      {{ card.mastered ? 'Mastered' : 'To Review' }}
+                    </v-chip>
+
+                    <div class="d-flex ga-1">
+                      <v-btn
+                        icon="mdi-pencil-outline"
+                        size="x-small"
+                        variant="text"
+                        @click="openEditFlashcardDialog(card)"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-delete-outline"
+                        size="x-small"
+                        variant="text"
+                        color="error"
+                        @click="confirmDeleteFlashcard(card)"
+                      ></v-btn>
+                    </div>
+                  </div>
+
+                  <div class="font-weight-bold text-body-1 mb-2">
+                    {{ card.question }}
+                  </div>
+
+                  <div class="text-body-2 text-grey-darken-1 card-answer-text">
+                    {{ card.answer }}
+                  </div>
+                </div>
+
+                <div class="d-flex justify-end mt-3 pt-2 border-top">
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :color="card.mastered ? 'success' : 'grey-darken-1'"
+                    :prepend-icon="card.mastered ? 'mdi-check-circle' : 'mdi-circle-outline'"
+                    class="text-none"
+                    @click="toggleCardMastered(card.id)"
+                  >
+                    {{ card.mastered ? 'Mastered' : 'Mark as Mastered' }}
+                  </v-btn>
+                </div>
+              </v-card>
+            </div>
+          </div>
+        </v-window-item>
+      </v-window>
+    </div>
+
+    <!-- ==================== DIALOGS ==================== -->
+
+    <!-- Interactive Study Deck Modal -->
+    <v-dialog v-model="studyModal" width="560">
+      <v-card v-if="studyCards.length > 0" class="pa-6 rounded-xl study-session-card" elevation="8">
+        <div class="d-flex justify-space-between align-center mb-3">
+          <span class="text-caption font-weight-bold text-grey">CARD {{ currentStudyIndex + 1 }} OF {{ studyCards.length }}</span>
+          <v-btn icon="mdi-close" size="small" variant="text" @click="studyModal = false"></v-btn>
+        </div>
+
+        <v-progress-linear
+          :model-value="((currentStudyIndex + 1) / studyCards.length) * 100"
+          color="color-bg-2"
+          rounded
+          height="6"
+          class="mb-4"
+        ></v-progress-linear>
+
+        <!-- Interactive Flip Card -->
+        <div
+          class="study-flip-card pa-8 rounded-xl d-flex flex-column align-center justify-center text-center cursor-pointer mb-6"
+          @click="showStudyAnswer = !showStudyAnswer"
+        >
+          <div class="text-caption font-weight-bold text-uppercase mb-2 text-grey">
+            {{ showStudyAnswer ? 'Answer' : 'Question (Click card to reveal answer)' }}
+          </div>
+          <div class="text-h5 font-weight-bold">
+            {{ showStudyAnswer ? studyCards[currentStudyIndex].answer : studyCards[currentStudyIndex].question }}
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="d-flex justify-space-between align-center ga-3">
+          <v-btn
+            variant="outlined"
+            :disabled="currentStudyIndex === 0"
+            prepend-icon="mdi-arrow-left"
+            class="text-none"
+            @click="prevStudyCard"
+          >
+            Previous
+          </v-btn>
+
+          <v-btn
+            color="success"
+            variant="tonal"
+            prepend-icon="mdi-check"
+            class="text-none"
+            @click="markCurrentStudyMastered"
+          >
+            I Know This
+          </v-btn>
+
+          <v-btn
+            color="color-bg-2"
+            variant="flat"
+            append-icon="mdi-arrow-right"
+            class="text-none"
+            @click="nextStudyCard"
+          >
+            {{ currentStudyIndex === studyCards.length - 1 ? 'Finish' : 'Next' }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- In-App Quick File Preview Dialog -->
+    <v-dialog v-model="previewDialog" width="700" scrollable>
+      <v-card v-if="previewFile" class="rounded-xl overflow-hidden" elevation="6">
+        <v-card-title class="d-flex justify-space-between align-center pa-4 border-bottom">
+          <div class="d-flex align-center ga-2 text-truncate">
+            <v-icon :icon="getFileInfo(previewFile.fileType).icon" :color="getFileInfo(previewFile.fileType).color"></v-icon>
+            <span class="text-subtitle-1 font-weight-bold text-truncate">{{ previewFile.name }}</span>
+          </div>
+          <div class="d-flex align-center ga-2">
+            <v-btn size="small" variant="tonal" prepend-icon="mdi-open-in-new" color="color-bg-2" class="text-none" @click="handleOpenFile(previewFile.id)">
+              Open in App
+            </v-btn>
+            <v-btn icon="mdi-close" size="small" variant="text" @click="previewDialog = false"></v-btn>
+          </div>
+        </v-card-title>
+
+        <v-card-text class="pa-4 preview-content-container">
+          <div v-if="isLoadingPreview" class="py-12 text-center">
+            <v-progress-circular indeterminate color="color-bg-2"></v-progress-circular>
+            <p class="mt-2 text-caption text-grey">Loading preview...</p>
+          </div>
+
+          <!-- Image Preview -->
+          <div v-else-if="['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(previewFile.fileType)" class="text-center">
+            <img :src="'data:image/' + previewFile.fileType + ';base64,' + previewContent" class="preview-image rounded-lg" />
+          </div>
+
+          <!-- PDF Preview -->
+          <div v-else-if="previewFile.fileType === 'pdf'" style="height: 520px;">
+            <iframe :src="'data:application/pdf;base64,' + previewContent" width="100%" height="100%" style="border: none;"></iframe>
+          </div>
+
+          <!-- Text / Code Preview -->
+          <div v-else-if="['txt', 'md', 'csv', 'json', 'py', 'js', 'html', 'css'].includes(previewFile.fileType)">
+            <pre class="preview-text pa-4 rounded-lg">{{ decodeBase64ToText(previewContent) }}</pre>
+          </div>
+
+          <!-- Fallback -->
+          <div v-else class="py-12 text-center text-grey">
+            <v-icon icon="mdi-file-eye-outline" size="48" class="mb-2"></v-icon>
+            <div class="font-weight-medium">Quick preview is not available for .{{ previewFile.fileType }} files.</div>
+            <div class="text-caption mb-4">Click below to open in your system's default viewer or editor.</div>
+            <v-btn color="color-bg-2" variant="flat" prepend-icon="mdi-open-in-new" class="text-none rounded-lg" @click="handleOpenFile(previewFile.id)">
+              Open in System Editor
+            </v-btn>
+          </div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Rename File Dialog -->
+    <v-dialog v-model="renameDialog" width="400">
+      <v-card v-if="fileToRename" class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-3">Rename File</h3>
+        <v-text-field
+          v-model="newFileName"
+          label="File name"
+          variant="outlined"
+          density="comfortable"
+          class="mb-4"
+          autofocus
+        ></v-text-field>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="renameDialog = false">Cancel</v-btn>
+          <v-btn color="color-bg-2" variant="flat" :loading="isRenaming" @click="executeRenameFile">Save</v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- Create / Edit Assignment Dialog -->
+    <v-dialog v-model="assignmentDialog" width="480">
+      <v-card class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-3">{{ editingAssignment ? 'Edit Assignment' : 'New Assignment' }}</h3>
+        <v-form @submit.prevent="saveAssignment">
+          <v-text-field v-model="assignmentForm.title" label="Title" variant="outlined" density="comfortable" class="mb-2" required></v-text-field>
+          <v-textarea v-model="assignmentForm.description" label="Description" variant="outlined" density="comfortable" rows="2" class="mb-2"></v-textarea>
+          <v-row>
+            <v-col cols="6">
+              <v-select v-model="assignmentForm.priority" label="Priority" :items="['low', 'medium', 'high']" variant="outlined" density="comfortable"></v-select>
+            </v-col>
+            <v-col cols="6">
+              <v-select v-model="assignmentForm.status" label="Status" :items="['pending', 'in_progress', 'completed']" variant="outlined" density="comfortable"></v-select>
+            </v-col>
+          </v-row>
+          <v-text-field v-model="assignmentForm.dueDate" type="date" label="Due Date" variant="outlined" density="comfortable" class="mb-4"></v-text-field>
+
+          <div class="d-flex justify-end ga-2">
+            <v-btn variant="text" @click="assignmentDialog = false">Cancel</v-btn>
+            <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSavingAssignment">Save</v-btn>
+          </div>
+        </v-form>
+      </v-card>
+    </v-dialog>
+
+    <!-- Update Assignment Progress Dialog -->
+    <v-dialog v-model="progressDialog" width="440">
+      <v-card v-if="progressTask" class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-1">Update Progress</h3>
+        <p class="text-body-2 text-grey-darken-1 mb-4 text-truncate">{{ progressTask.title }}</p>
+
+        <div class="d-flex justify-space-between align-center mb-2">
+          <span class="text-caption text-grey font-weight-medium">Completion</span>
+          <span class="text-h6 font-weight-bold">{{ progressValue }}%</span>
+        </div>
+        <v-slider
+          v-model="progressValue"
+          :min="0"
+          :max="100"
+          :step="5"
+          color="color-bg-2"
+          track-color="grey-lighten-3"
+          thumb-label
+          class="mb-2"
+        ></v-slider>
+
+        <div class="d-flex ga-2 mb-5 flex-wrap">
+          <v-chip
+            v-for="preset in [0, 25, 50, 75, 100]"
+            :key="preset"
+            size="small"
+            variant="tonal"
+            :color="progressValue === preset ? 'color-bg-2' : 'grey'"
+            class="cursor-pointer font-weight-medium"
+            @click="progressValue = preset"
+          >
+            {{ preset }}%
           </v-chip>
         </div>
 
-        <div class="d-flex align-center ga-3 flex-wrap">
-          <!-- Search input -->
-          <v-text-field
-            v-if="files.length > 0"
-            v-model="searchQuery"
-            prepend-inner-icon="mdi-magnify"
-            placeholder="Search files..."
-            density="compact"
-            variant="outlined"
-            rounded="lg"
-            hide-details
-            clearable
-            style="width: 220px;"
-          ></v-text-field>
-
-          <!-- Grid / List Toggle -->
-          <v-btn-toggle
-            v-model="viewMode"
-            mandatory
-            divided
-            rounded="lg"
-            variant="outlined"
-            class="view-toggle"
-          >
-            <v-btn value="grid" icon="mdi-view-grid" title="Grid View"></v-btn>
-            <v-btn value="list" icon="mdi-format-list-bulleted" title="List View"></v-btn>
-          </v-btn-toggle>
-
-          <!-- Hidden File Input -->
-          <input
-            ref="fileInputRef"
-            type="file"
-            multiple
-            style="display: none;"
-            @change="handleFileSelected"
-          />
-
-          <!-- Upload Button -->
-          <v-btn
-            prepend-icon="mdi-upload"
-            variant="flat"
-            class="upload-btn text-none font-weight-medium rounded-lg"
-            height="40"
-            :loading="isUploading"
-            @click="triggerFileInput"
-          >
-            Upload File
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="progressDialog = false">Cancel</v-btn>
+          <v-btn color="color-bg-2" variant="flat" :loading="isSavingProgress" @click="saveProgress">
+            Save Progress
           </v-btn>
         </div>
-      </div>
+      </v-card>
+    </v-dialog>
 
-      <!-- Drag & Drop Overlay (active when dragging files) -->
-      <div
-        v-if="isDragging"
-        class="drag-overlay pa-8 rounded-lg text-center mb-6"
-        @dragover.prevent
-        @dragleave.prevent="isDragging = false"
-        @drop.prevent="handleDrop"
-      >
-        <v-icon icon="mdi-cloud-upload" size="48" color="color-bg-2" class="mb-2"></v-icon>
-        <div class="text-subtitle-1 font-weight-bold">Drop files here to upload to {{ currentModule.code }}</div>
-      </div>
+    <!-- Create / Edit Flashcard Dialog -->
+    <v-dialog v-model="flashcardDialog" width="480">
+      <v-card class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-3">{{ editingFlashcard ? 'Edit Flashcard' : 'New Flashcard' }}</h3>
+        <v-form @submit.prevent="saveFlashcard">
+          <v-textarea v-model="flashcardForm.question" label="Question / Prompt" variant="outlined" density="comfortable" rows="3" class="mb-2" required></v-textarea>
+          <v-textarea v-model="flashcardForm.answer" label="Answer / Solution" variant="outlined" density="comfortable" rows="3" class="mb-4" required></v-textarea>
+          <div class="d-flex justify-end ga-2">
+            <v-btn variant="text" @click="flashcardDialog = false">Cancel</v-btn>
+            <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSavingFlashcard">Save Card</v-btn>
+          </div>
+        </v-form>
+      </v-card>
+    </v-dialog>
 
-      <!-- Loading State -->
-      <div v-if="isLoadingFiles" class="py-12 text-center">
-        <v-progress-circular indeterminate color="color-bg-2"></v-progress-circular>
-        <p class="mt-3 text-caption text-grey">Loading files...</p>
-      </div>
+    <!-- Create Folder Dialog -->
+    <v-dialog v-model="createFolderDialog" width="400">
+      <v-card class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-1">New Folder</h3>
+        <p class="text-body-2 text-grey-darken-1 mb-4">Organise files in {{ currentModule?.code }} (e.g. Notes, Assignments, Flash Cards).</p>
+        <v-form ref="folderFormRef" @submit.prevent="handleCreateFolder">
+          <v-text-field v-model="newFolderName" label="Folder name" variant="outlined" density="comfortable" :rules="folderNameRules" class="mb-4" autofocus required></v-text-field>
+          <div class="d-flex justify-end ga-2">
+            <v-btn variant="text" @click="createFolderDialog = false">Cancel</v-btn>
+            <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isCreatingFolder">Create Folder</v-btn>
+          </div>
+        </v-form>
+      </v-card>
+    </v-dialog>
 
-      <!-- Empty State -->
-      <v-card
-        v-else-if="files.length === 0"
-        class="pa-12 text-center rounded-lg empty-card"
-        variant="tonal"
-        @dragover.prevent="isDragging = true"
-        @dragleave.prevent="isDragging = false"
-        @drop.prevent="handleDrop"
-      >
-        <v-icon icon="mdi-folder-open-outline" size="56" color="grey" class="mb-3"></v-icon>
-        <h3 class="text-h6 font-weight-medium mb-1">No files yet for {{ currentModule.code }}</h3>
-        <p class="text-body-2 text-grey-darken-1">
-          Use the <strong>Upload File</strong> button above or drag and drop documents here.
+    <!-- Move File Dialog -->
+    <v-dialog v-model="moveDialog" width="400">
+      <v-card v-if="fileToMove" class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-1">Move File</h3>
+        <p class="text-body-2 text-grey-darken-1 mb-4 text-truncate">Move <strong>{{ fileToMove.name }}</strong> to:</p>
+        <v-select v-model="targetFolderSelection" label="Destination Folder" variant="outlined" density="comfortable" :items="folderSelectOptions" item-title="title" item-value="id" class="mb-4"></v-select>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="moveDialog = false">Cancel</v-btn>
+          <v-btn color="color-bg-2" variant="flat" :loading="isMoving" @click="executeMoveFile">Move File</v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Folder Confirmation Dialog -->
+    <v-dialog v-model="deleteFolderDialog" width="420">
+      <v-card v-if="folderToDelete" class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-2 text-error">Delete Folder?</h3>
+        <p class="text-body-2 text-grey-darken-1 mb-4">
+          Are you sure you want to delete folder <strong>{{ folderToDelete.name }}</strong>?
+          <span v-if="folderToDelete.fileCount > 0" class="text-error d-block mt-2">
+            <strong>Warning:</strong> All {{ folderToDelete.fileCount }} files inside this folder will also be deleted.
+          </span>
         </p>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="deleteFolderDialog = false">Cancel</v-btn>
+          <v-btn color="error" variant="flat" :loading="isDeletingFolder" @click="executeDeleteFolder">Delete Folder</v-btn>
+        </div>
       </v-card>
+    </v-dialog>
 
-      <!-- No Search Results State -->
-      <div v-else-if="filteredFiles.length === 0" class="py-8 text-center text-grey">
-        <v-icon icon="mdi-file-search-outline" size="36" class="mb-2"></v-icon>
-        <p>No files match "{{ searchQuery }}"</p>
-      </div>
-
-      <!-- GRID VIEW -->
-      <div v-else-if="viewMode === 'grid'" class="files-grid">
-        <v-card
-          v-for="file in filteredFiles"
-          :key="file.id"
-          class="file-card pa-4 rounded-lg d-flex flex-column justify-space-between"
-          elevation="2"
-          @click="handleOpenFile(file.id)"
-        >
-          <!-- Top file icon & badge -->
-          <div>
-            <div class="d-flex justify-space-between align-start mb-3">
-              <v-icon
-                :icon="getFileInfo(file.fileType).icon"
-                :color="getFileInfo(file.fileType).color"
-                size="44"
-              ></v-icon>
-              <v-chip
-                size="x-small"
-                variant="tonal"
-                :color="getFileInfo(file.fileType).color"
-                class="font-weight-bold"
-              >
-                {{ getFileInfo(file.fileType).label }}
-              </v-chip>
-            </div>
-
-            <!-- File Name -->
-            <div class="file-name font-weight-bold mb-1" :title="file.name">
-              {{ file.name }}
-            </div>
-
-            <!-- File Meta -->
-            <div class="text-caption text-grey">
-              {{ formatFileSize(file.fileSize) }}
-              <span v-if="file.createdAt"> • {{ formatDate(file.createdAt) }}</span>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="file-card-actions d-flex justify-space-between align-center mt-4 pt-2 border-top">
-            <v-btn
-              variant="text"
-              size="small"
-              prepend-icon="mdi-open-in-new"
-              color="color-bg-2"
-              class="text-none"
-              @click.stop="handleOpenFile(file.id)"
-            >
-              Open
-            </v-btn>
-
-            <v-btn
-              variant="text"
-              size="small"
-              icon="mdi-delete-outline"
-              color="error"
-              title="Delete File"
-              @click.stop="confirmDeleteFile(file)"
-            ></v-btn>
-          </div>
-        </v-card>
-      </div>
-
-      <!-- LIST VIEW -->
-      <v-card v-else class="rounded-lg overflow-hidden" elevation="2">
-        <v-table hover>
-          <thead>
-            <tr>
-              <th style="width: 50px;"></th>
-              <th>Name</th>
-              <th style="width: 120px;">Type</th>
-              <th style="width: 120px;">Size</th>
-              <th style="width: 160px;">Date Uploaded</th>
-              <th style="width: 130px;" class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="file in filteredFiles"
-              :key="file.id"
-              class="file-table-row cursor-pointer"
-              @click="handleOpenFile(file.id)"
-            >
-              <td>
-                <v-icon
-                  :icon="getFileInfo(file.fileType).icon"
-                  :color="getFileInfo(file.fileType).color"
-                  size="26"
-                ></v-icon>
-              </td>
-              <td>
-                <span class="font-weight-medium">{{ file.name }}</span>
-              </td>
-              <td>
-                <v-chip
-                  size="x-small"
-                  variant="tonal"
-                  :color="getFileInfo(file.fileType).color"
-                  class="font-weight-bold"
-                >
-                  {{ getFileInfo(file.fileType).label }}
-                </v-chip>
-              </td>
-              <td class="text-caption text-grey-darken-1">
-                {{ formatFileSize(file.fileSize) }}
-              </td>
-              <td class="text-caption text-grey-darken-1">
-                {{ formatDate(file.createdAt) }}
-              </td>
-              <td class="text-right">
-                <v-btn
-                  icon="mdi-open-in-new"
-                  variant="text"
-                  size="small"
-                  color="color-bg-2"
-                  title="Open file"
-                  @click.stop="handleOpenFile(file.id)"
-                ></v-btn>
-                <v-btn
-                  icon="mdi-delete-outline"
-                  variant="text"
-                  size="small"
-                  color="error"
-                  title="Delete file"
-                  @click.stop="confirmDeleteFile(file)"
-                ></v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
-      </v-card>
-    </div>
-
-    <!-- Delete Confirmation Dialog -->
+    <!-- Delete File Confirmation Dialog -->
     <v-dialog v-model="deleteDialog" width="380">
       <v-card v-if="fileToDelete" class="pa-6 rounded-lg" elevation="4">
         <h3 class="text-h6 font-weight-medium mb-2">Delete File?</h3>
@@ -276,14 +1043,12 @@
         </p>
         <div class="d-flex justify-end ga-2">
           <v-btn type="button" variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" :loading="isDeleting" @click="executeDeleteFile">
-            Delete
-          </v-btn>
+          <v-btn color="error" variant="flat" :loading="isDeleting" @click="executeDeleteFile">Delete</v-btn>
         </div>
       </v-card>
     </v-dialog>
 
-    <!-- Alert Snackbar -->
+    <!-- Snackbar -->
     <v-snackbar v-model="showAlert" :color="alertType" timeout="3000">
       {{ alertMsg }}
     </v-snackbar>
@@ -291,22 +1056,56 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { models } from '../../wailsjs/go/models'
 import { GetModule } from '../../wailsjs/go/controllers/ModuleController'
-import { UploadFile, GetFilesByModule, DeleteFile, OpenFile } from '../../wailsjs/go/controllers/FileController'
+import {
+  UploadFile,
+  GetFilesByModule,
+  DeleteFile,
+  OpenFile,
+  CreateFolder,
+  GetFoldersByModule,
+  DeleteFolder,
+  MoveFile,
+  RenameFile,
+  GetFileContent
+} from '../../wailsjs/go/controllers/FileController'
+import {
+  CreateAssignment,
+  GetAssignmentsByModule,
+  UpdateAssignment,
+  UpdateAssignmentProgress,
+  UpdateAssignmentStatus,
+  DeleteAssignment
+} from '../../wailsjs/go/controllers/AssignmentController'
+import {
+  CreateFlashcard,
+  GetFlashcardsByModule,
+  ToggleMastered,
+  UpdateFlashcard,
+  DeleteFlashcard
+} from '../../wailsjs/go/controllers/FlashcardController'
 
 const route = useRoute()
 const moduleCode = computed(() => route.params.code as string)
 
+const activeTab = ref('files')
 const currentModule = ref<models.Module | null>(null)
 const files = ref<models.File[]>([])
+const folders = ref<models.Folder[]>([])
+const assignments = ref<models.Assignment[]>([])
+const flashcards = ref<models.Flashcard[]>([])
+
+const selectedFolderId = ref<string | null>(null)
+const rootFilterMode = ref<'all' | 'unfiled'>('all')
 const viewMode = ref<'grid' | 'list'>('grid')
 const searchQuery = ref('')
 
 const isUploading = ref(false)
 const isLoadingFiles = ref(false)
+const isLoadingFolders = ref(false)
 const isDragging = ref(false)
 const isDeleting = ref(false)
 
@@ -314,21 +1113,144 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const deleteDialog = ref(false)
 const fileToDelete = ref<models.File | null>(null)
 
+// Folder dialogs & state
+const createFolderDialog = ref(false)
+const isCreatingFolder = ref(false)
+const newFolderName = ref('')
+const folderFormRef = ref<any>(null)
+const deleteFolderDialog = ref(false)
+const isDeletingFolder = ref(false)
+const folderToDelete = ref<models.Folder | null>(null)
+
+// Move file dialog & state
+const moveDialog = ref(false)
+const isMoving = ref(false)
+const fileToMove = ref<models.File | null>(null)
+const targetFolderSelection = ref<string>('')
+
+// Rename file dialog
+const renameDialog = ref(false)
+const isRenaming = ref(false)
+const fileToRename = ref<models.File | null>(null)
+const newFileName = ref('')
+
+// In-app preview
+const previewDialog = ref(false)
+const previewFile = ref<models.File | null>(null)
+const previewContent = ref('')
+const isLoadingPreview = ref(false)
+
+// Assignments state & dialog
+const assignmentFilter = ref('all')
+const assignmentDialog = ref(false)
+const isSavingAssignment = ref(false)
+const editingAssignment = ref<models.Assignment | null>(null)
+const progressDialog = ref(false)
+const progressTask = ref<models.Assignment | null>(null)
+const progressValue = ref(0)
+const isSavingProgress = ref(false)
+const assignmentForm = ref({
+  title: '',
+  description: '',
+  priority: 'medium',
+  status: 'pending',
+  dueDate: ''
+})
+
+// Flashcards state & dialog
+const flashcardDialog = ref(false)
+const isSavingFlashcard = ref(false)
+const editingFlashcard = ref<models.Flashcard | null>(null)
+const flashcardForm = ref({
+  question: '',
+  answer: ''
+})
+
+// Study session state
+const studyModal = ref(false)
+const studyCards = ref<models.Flashcard[]>([])
+const currentStudyIndex = ref(0)
+const showStudyAnswer = ref(false)
+
 const alertMsg = ref('')
 const alertType = ref('success')
 const showAlert = ref(false)
 
-const filteredFiles = computed(() => {
-  if (!searchQuery.value?.trim()) return files.value
-  const q = searchQuery.value.toLowerCase().trim()
-  return files.value.filter(f => f.name.toLowerCase().includes(q))
+const EDITABLE_EXTENSIONS = new Set([
+  'doc', 'docx', 'odt', 'rtf', 'txt', 'md',
+  'xls', 'xlsx', 'ods', 'csv',
+  'ppt', 'pptx', 'odp'
+])
+
+function isEditable(ext: string): boolean {
+  return EDITABLE_EXTENSIONS.has((ext || '').toLowerCase())
+}
+
+const currentFolder = computed(() => {
+  if (!selectedFolderId.value) return null
+  return folders.value.find(f => f.id === selectedFolderId.value) || null
+})
+
+function getFolderName(folderId?: string): string {
+  if (!folderId) return ''
+  const folder = folders.value.find(f => f.id === folderId)
+  return folder ? folder.name : ''
+}
+
+const folderSelectOptions = computed(() => {
+  return [
+    { title: '📁 (None / Root)', id: '' },
+    ...folders.value.map(f => ({ title: `📁 ${f.name}`, id: f.id }))
+  ]
+})
+
+const folderNameRules = [
+  (v: string) => (v && v.trim().length > 0) || 'Folder name is required',
+  (v: string) => {
+    if (!v) return true
+    const trimmed = v.trim().toLowerCase()
+    const duplicate = folders.value.some(f => f.name.toLowerCase() === trimmed)
+    return !duplicate || 'A folder with this name already exists'
+  }
+]
+
+const displayedFiles = computed(() => {
+  let list = files.value
+  if (selectedFolderId.value) {
+    list = list.filter(f => f.folderId === selectedFolderId.value)
+  } else if (rootFilterMode.value === 'unfiled') {
+    list = list.filter(f => !f.folderId)
+  }
+  if (searchQuery.value?.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(f => f.name.toLowerCase().includes(q))
+  }
+  return list
+})
+
+const pendingAssignmentsCount = computed(() => {
+  return assignments.value.filter(a => a.status !== 'completed').length
+})
+
+const filteredAssignments = computed(() => {
+  if (assignmentFilter.value === 'all') return assignments.value
+  return assignments.value.filter(a => a.status === assignmentFilter.value)
+})
+
+const masteredFlashcardsCount = computed(() => {
+  return flashcards.value.filter(c => c.mastered).length
 })
 
 async function fetchModuleDetails() {
   try {
     currentModule.value = await GetModule(moduleCode.value)
     if (currentModule.value?.id) {
-      await fetchFiles()
+      await Promise.all([
+        fetchFolders(),
+        fetchFiles(),
+        fetchAssignments(),
+        fetchFlashcards()
+      ])
     }
   } catch (err: any) {
     alertMsg.value = 'Failed to get module details: ' + err
@@ -337,18 +1259,185 @@ async function fetchModuleDetails() {
   }
 }
 
+async function fetchFolders() {
+  if (!currentModule.value?.id) return
+  try {
+    isLoadingFolders.value = true
+    folders.value = await GetFoldersByModule(currentModule.value.id) || []
+  } catch (err: any) {
+    console.error('Failed to load folders:', err)
+  } finally {
+    isLoadingFolders.value = false
+  }
+}
+
 async function fetchFiles() {
   if (!currentModule.value?.id) return
   try {
     isLoadingFiles.value = true
-    const res = await GetFilesByModule(currentModule.value.id)
-    files.value = res || []
+    files.value = await GetFilesByModule(currentModule.value.id) || []
   } catch (err: any) {
-    alertMsg.value = 'Failed to load module files: ' + err
+    console.error('Failed to load files:', err)
+  } finally {
+    isLoadingFiles.value = false
+  }
+}
+
+async function fetchAssignments() {
+  if (!currentModule.value?.id) return
+  try {
+    assignments.value = await GetAssignmentsByModule(currentModule.value.id) || []
+  } catch (err: any) {
+    console.error('Failed to load assignments:', err)
+  }
+}
+
+async function fetchFlashcards() {
+  if (!currentModule.value?.id) return
+  try {
+    flashcards.value = await GetFlashcardsByModule(currentModule.value.id) || []
+  } catch (err: any) {
+    console.error('Failed to load flashcards:', err)
+  }
+}
+
+function openFolder(folderId?: string) {
+  if (folderId) {
+    selectedFolderId.value = folderId
+  }
+}
+
+function openCreateFolderDialog() {
+  newFolderName.value = ''
+  if (folderFormRef.value) folderFormRef.value.resetValidation()
+  createFolderDialog.value = true
+}
+
+async function handleCreateFolder() {
+  if (!currentModule.value?.id) return
+  if (folderFormRef.value) {
+    const { valid } = await folderFormRef.value.validate()
+    if (!valid) return
+  }
+  const cleanName = newFolderName.value.trim()
+  if (!cleanName) return
+
+  try {
+    isCreatingFolder.value = true
+    const newFolder = await CreateFolder(currentModule.value.id, cleanName)
+    createFolderDialog.value = false
+    alertMsg.value = `Folder "${newFolder.name}" created`
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchFolders()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to create folder: ' + err
     alertType.value = 'error'
     showAlert.value = true
   } finally {
-    isLoadingFiles.value = false
+    isCreatingFolder.value = false
+  }
+}
+
+function confirmDeleteFolder(folder: models.Folder) {
+  folderToDelete.value = folder
+  deleteFolderDialog.value = true
+}
+
+async function executeDeleteFolder() {
+  if (!folderToDelete.value) return
+  try {
+    isDeletingFolder.value = true
+    await DeleteFolder(folderToDelete.value.id)
+    deleteFolderDialog.value = false
+    if (selectedFolderId.value === folderToDelete.value.id) {
+      selectedFolderId.value = null
+    }
+    alertMsg.value = `Folder "${folderToDelete.value.name}" deleted`
+    alertType.value = 'success'
+    showAlert.value = true
+    await Promise.all([fetchFolders(), fetchFiles()])
+  } catch (err: any) {
+    alertMsg.value = 'Failed to delete folder: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isDeletingFolder.value = false
+  }
+}
+
+function openMoveDialog(file: models.File) {
+  fileToMove.value = file
+  targetFolderSelection.value = file.folderId || ''
+  moveDialog.value = true
+}
+
+async function executeMoveFile() {
+  if (!fileToMove.value) return
+  try {
+    isMoving.value = true
+    await MoveFile(fileToMove.value.id, targetFolderSelection.value)
+    moveDialog.value = false
+    alertMsg.value = 'File moved successfully'
+    alertType.value = 'success'
+    showAlert.value = true
+    await Promise.all([fetchFolders(), fetchFiles()])
+  } catch (err: any) {
+    alertMsg.value = 'Failed to move file: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isMoving.value = false
+  }
+}
+
+function openRenameDialog(file: models.File) {
+  fileToRename.value = file
+  newFileName.value = file.name
+  renameDialog.value = true
+}
+
+async function executeRenameFile() {
+  if (!fileToRename.value) return
+  const clean = newFileName.value.trim()
+  if (!clean) return
+
+  try {
+    isRenaming.value = true
+    await RenameFile(fileToRename.value.id, clean)
+    renameDialog.value = false
+    alertMsg.value = 'File renamed successfully'
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchFiles()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to rename file: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isRenaming.value = false
+  }
+}
+
+async function openPreview(file: models.File) {
+  previewFile.value = file
+  previewContent.value = ''
+  previewDialog.value = true
+  try {
+    isLoadingPreview.value = true
+    previewContent.value = await GetFileContent(file.id)
+  } catch (err: any) {
+    console.error('Failed to get preview content:', err)
+  } finally {
+    isLoadingPreview.value = false
+  }
+}
+
+function decodeBase64ToText(b64: string): string {
+  try {
+    return atob(b64)
+  } catch {
+    return 'Unable to decode text'
   }
 }
 
@@ -360,7 +1449,6 @@ async function handleFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   const fileList = target.files
   if (!fileList || fileList.length === 0) return
-
   await uploadFilesList(fileList)
   target.value = ''
 }
@@ -374,15 +1462,15 @@ function handleDrop(event: DragEvent) {
 
 async function uploadFilesList(fileList: FileList) {
   if (!currentModule.value?.id) return
-
   isUploading.value = true
   let successCount = 0
+  const targetFolderId = selectedFolderId.value || ''
 
   for (let i = 0; i < fileList.length; i++) {
     const file = fileList[i]
     try {
       const base64Data = await readFileAsBase64(file)
-      await UploadFile(currentModule.value.id, file.name, base64Data)
+      await UploadFile(currentModule.value.id, targetFolderId, file.name, base64Data)
       successCount++
     } catch (err: any) {
       alertMsg.value = `Failed to upload ${file.name}: ` + err
@@ -392,12 +1480,11 @@ async function uploadFilesList(fileList: FileList) {
   }
 
   isUploading.value = false
-
   if (successCount > 0) {
     alertMsg.value = successCount === 1 ? 'File uploaded successfully!' : `${successCount} files uploaded successfully!`
     alertType.value = 'success'
     showAlert.value = true
-    await fetchFiles()
+    await Promise.all([fetchFolders(), fetchFiles()])
   }
 }
 
@@ -407,11 +1494,7 @@ function readFileAsBase64(file: File): Promise<string> {
     reader.onload = () => {
       const result = reader.result as string
       const commaIndex = result.indexOf(',')
-      if (commaIndex !== -1) {
-        resolve(result.substring(commaIndex + 1))
-      } else {
-        resolve(result)
-      }
+      resolve(commaIndex !== -1 ? result.substring(commaIndex + 1) : result)
     }
     reader.onerror = error => reject(error)
     reader.readAsDataURL(file)
@@ -442,7 +1525,7 @@ async function executeDeleteFile() {
     alertMsg.value = `Deleted "${fileToDelete.value.name}"`
     alertType.value = 'success'
     showAlert.value = true
-    await fetchFiles()
+    await Promise.all([fetchFolders(), fetchFiles()])
   } catch (err: any) {
     alertMsg.value = 'Failed to delete file: ' + err
     alertType.value = 'error'
@@ -452,6 +1535,241 @@ async function executeDeleteFile() {
   }
 }
 
+// Assignment actions
+function openCreateAssignmentDialog() {
+  editingAssignment.value = null
+  assignmentForm.value = {
+    title: '',
+    description: '',
+    priority: 'medium',
+    status: 'pending',
+    dueDate: ''
+  }
+  assignmentDialog.value = true
+}
+
+function openEditAssignmentDialog(assign: models.Assignment) {
+  editingAssignment.value = assign
+  let formattedDate = ''
+  if (assign.dueDate) {
+    const d = new Date(assign.dueDate)
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toISOString().split('T')[0]
+    }
+  }
+  assignmentForm.value = {
+    title: assign.title,
+    description: assign.description || '',
+    priority: assign.priority || 'medium',
+    status: assign.status || 'pending',
+    dueDate: formattedDate
+  }
+  assignmentDialog.value = true
+}
+
+async function saveAssignment() {
+  if (!currentModule.value?.id) return
+  const title = assignmentForm.value.title.trim()
+  if (!title) return
+
+  try {
+    isSavingAssignment.value = true
+    if (editingAssignment.value) {
+      await UpdateAssignment(
+        editingAssignment.value.id,
+        title,
+        assignmentForm.value.description,
+        assignmentForm.value.status,
+        assignmentForm.value.priority,
+        assignmentForm.value.dueDate
+      )
+      alertMsg.value = 'Assignment updated!'
+    } else {
+      await CreateAssignment(
+        currentModule.value.id,
+        title,
+        assignmentForm.value.description,
+        assignments.value.length + 1,
+        assignmentForm.value.status,
+        assignmentForm.value.priority,
+        assignmentForm.value.dueDate
+      )
+      alertMsg.value = 'Assignment created!'
+    }
+    assignmentDialog.value = false
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchAssignments()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to save assignment: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingAssignment.value = false
+  }
+}
+
+function getProgressColor(progress?: number): string {
+  const p = progress || 0
+  if (p >= 100) return 'success'
+  if (p >= 50) return 'color-bg-2'
+  if (p > 0) return 'warning'
+  return 'grey'
+}
+
+function openProgressDialog(assign: models.Assignment) {
+  progressTask.value = assign
+  progressValue.value = assign.progress || 0
+  progressDialog.value = true
+}
+
+async function saveProgress() {
+  if (!progressTask.value) return
+  try {
+    isSavingProgress.value = true
+    await UpdateAssignmentProgress(progressTask.value.id, progressValue.value)
+    progressDialog.value = false
+    alertMsg.value = `Progress updated to ${progressValue.value}%`
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchAssignments()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to update progress: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingProgress.value = false
+  }
+}
+
+async function updateStatus(id: string, status: string) {
+  try {
+    await UpdateAssignmentStatus(id, status)
+    await fetchAssignments()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to update status: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  }
+}
+
+async function confirmDeleteAssignment(assign: models.Assignment) {
+  if (!confirm(`Delete assignment "${assign.title}"?`)) return
+  try {
+    await DeleteAssignment(assign.id)
+    alertMsg.value = 'Assignment deleted'
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchAssignments()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to delete assignment: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  }
+}
+
+// Flashcard actions
+function openCreateFlashcardDialog() {
+  editingFlashcard.value = null
+  flashcardForm.value = { question: '', answer: '' }
+  flashcardDialog.value = true
+}
+
+function openEditFlashcardDialog(card: models.Flashcard) {
+  editingFlashcard.value = card
+  flashcardForm.value = { question: card.question, answer: card.answer }
+  flashcardDialog.value = true
+}
+
+async function saveFlashcard() {
+  if (!currentModule.value?.id) return
+  const q = flashcardForm.value.question.trim()
+  const a = flashcardForm.value.answer.trim()
+  if (!q || !a) return
+
+  try {
+    isSavingFlashcard.value = true
+    if (editingFlashcard.value) {
+      await UpdateFlashcard(editingFlashcard.value.id, q, a)
+      alertMsg.value = 'Flashcard updated!'
+    } else {
+      await CreateFlashcard(currentModule.value.id, q, a)
+      alertMsg.value = 'Flashcard created!'
+    }
+    flashcardDialog.value = false
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchFlashcards()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to save flashcard: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingFlashcard.value = false
+  }
+}
+
+async function toggleCardMastered(id: string) {
+  try {
+    await ToggleMastered(id)
+    await fetchFlashcards()
+  } catch (err: any) {
+    console.error('Failed to toggle mastered:', err)
+  }
+}
+
+async function confirmDeleteFlashcard(card: models.Flashcard) {
+  if (!confirm('Delete this flashcard?')) return
+  try {
+    await DeleteFlashcard(card.id)
+    alertMsg.value = 'Flashcard deleted'
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchFlashcards()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to delete card: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  }
+}
+
+// Study deck actions
+function startStudySession() {
+  studyCards.value = [...flashcards.value]
+  currentStudyIndex.value = 0
+  showStudyAnswer.value = false
+  studyModal.value = true
+}
+
+function nextStudyCard() {
+  if (currentStudyIndex.value < studyCards.value.length - 1) {
+    currentStudyIndex.value++
+    showStudyAnswer.value = false
+  } else {
+    studyModal.value = false
+    alertMsg.value = 'Study session complete! Great job.'
+    alertType.value = 'success'
+    showAlert.value = true
+  }
+}
+
+function prevStudyCard() {
+  if (currentStudyIndex.value > 0) {
+    currentStudyIndex.value--
+    showStudyAnswer.value = false
+  }
+}
+
+async function markCurrentStudyMastered() {
+  const card = studyCards.value[currentStudyIndex.value]
+  if (card && !card.mastered) {
+    await toggleCardMastered(card.id)
+    card.mastered = true
+  }
+  nextStudyCard()
+}
+
+// Helpers
 function formatFileSize(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
   const k = 1024
@@ -464,57 +1782,106 @@ function formatDate(dateStr: any): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatDateTime(dateStr: any): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDueDateDisplay(dateStr: any): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const diffTime = d.getTime() - new Date().getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return `Overdue by ${Math.abs(diffDays)}d (${d.toLocaleDateString()})`
+  if (diffDays === 0) return 'Due Today!'
+  if (diffDays === 1) return 'Due Tomorrow'
+  return `${diffDays} days left (${d.toLocaleDateString()})`
+}
+
+function isOverdue(dateStr: any): boolean {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  return d.getTime() < new Date().getTime()
+}
+
+function getPriorityColor(p?: string) {
+  switch ((p || '').toLowerCase()) {
+    case 'high': return 'error'
+    case 'medium': return 'warning'
+    case 'low': return 'info'
+    default: return 'grey'
+  }
+}
+
+function getStatusColor(s?: string) {
+  switch ((s || '').toLowerCase()) {
+    case 'completed': return 'success'
+    case 'in_progress': return 'warning'
+    default: return 'grey'
+  }
 }
 
 function getFileInfo(ext: string) {
   const e = (ext || '').toLowerCase()
   switch (e) {
-    case 'pdf':
-      return { icon: 'mdi-file-pdf-box', color: '#D32F2F', label: 'PDF' }
+    case 'pdf': return { icon: 'mdi-file-pdf-box', color: '#D32F2F', label: 'PDF' }
     case 'doc':
-    case 'docx':
-      return { icon: 'mdi-file-word-box', color: '#1976D2', label: 'DOC' }
+    case 'docx': return { icon: 'mdi-file-word-box', color: '#1976D2', label: 'DOC' }
+    case 'odt': return { icon: 'mdi-file-document-edit', color: '#0288D1', label: 'ODT' }
     case 'xls':
     case 'xlsx':
-    case 'csv':
-      return { icon: 'mdi-file-excel-box', color: '#388E3C', label: 'SHEET' }
+    case 'ods':
+    case 'csv': return { icon: 'mdi-file-excel-box', color: '#388E3C', label: 'SHEET' }
     case 'ppt':
     case 'pptx':
-      return { icon: 'mdi-file-powerpoint-box', color: '#F57C00', label: 'SLIDES' }
+    case 'odp': return { icon: 'mdi-file-powerpoint-box', color: '#F57C00', label: 'SLIDES' }
     case 'png':
     case 'jpg':
     case 'jpeg':
     case 'gif':
     case 'svg':
-    case 'webp':
-      return { icon: 'mdi-file-image', color: '#00897B', label: 'IMAGE' }
+    case 'webp': return { icon: 'mdi-file-image', color: '#00897B', label: 'IMAGE' }
     case 'zip':
     case 'rar':
-    case '7z':
-    case 'tar':
-    case 'gz':
-      return { icon: 'mdi-folder-zip', color: '#FFA000', label: 'ARCHIVE' }
+    case '7z': return { icon: 'mdi-folder-zip', color: '#FFA000', label: 'ARCHIVE' }
     case 'txt':
-    case 'md':
-      return { icon: 'mdi-file-document-outline', color: '#546E7A', label: 'TEXT' }
-    default:
-      return { icon: 'mdi-file-outline', color: '#757575', label: e.toUpperCase() || 'FILE' }
+    case 'md': return { icon: 'mdi-file-document-outline', color: '#546E7A', label: 'TEXT' }
+    default: return { icon: 'mdi-file-outline', color: '#757575', label: e.toUpperCase() || 'FILE' }
+  }
+}
+
+function onWindowFocus() {
+  if (currentModule.value?.id) {
+    fetchFiles()
+    fetchFolders()
+    fetchAssignments()
+    fetchFlashcards()
   }
 }
 
 onMounted(() => {
   fetchModuleDetails()
+  window.addEventListener('focus', onWindowFocus)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', onWindowFocus)
 })
 
 watch(moduleCode, (newCode, oldCode) => {
   if (newCode && newCode !== oldCode) {
     currentModule.value = null
     files.value = []
+    folders.value = []
+    assignments.value = []
+    flashcards.value = []
+    selectedFolderId.value = null
     searchQuery.value = ''
     fetchModuleDetails()
   }
@@ -531,6 +1898,39 @@ watch(moduleCode, (newCode, oldCode) => {
   height: 14px;
   border-radius: 50%;
   display: inline-block;
+}
+
+.module-tabs {
+  background-color: var(--color-bg-3);
+}
+
+/* Folders Grid */
+.folders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.folder-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.folder-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1) !important;
+  border-color: var(--color-bg-2, #7A8B69);
+}
+
+.add-folder-card {
+  border: 2px dashed rgba(0, 0, 0, 0.18);
+  min-height: 60px;
+  transition: all 0.15s ease;
+}
+
+.add-folder-card:hover {
+  border-color: var(--color-bg-2, #7A8B69);
+  background-color: rgba(122, 139, 105, 0.08);
 }
 
 /* Grid / list toggle */
@@ -552,11 +1952,13 @@ watch(moduleCode, (newCode, oldCode) => {
   color: #ffffff !important;
 }
 
-/* Upload button */
+.filter-toggle {
+  height: 32px !important;
+}
+
 .upload-btn {
   background-color: var(--color-bg-2, #7A8B69) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .upload-btn:hover {
@@ -572,12 +1974,12 @@ watch(moduleCode, (newCode, oldCode) => {
 
 .files-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
 
 .file-card {
-  min-height: 165px;
+  min-height: 175px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -598,12 +2000,76 @@ watch(moduleCode, (newCode, oldCode) => {
   word-break: break-word;
 }
 
+.modification-date {
+  font-size: 11.5px;
+}
+
 .border-top {
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.border-bottom {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
 .file-table-row:hover {
   background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Flashcards Grid */
+.flashcards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.flashcard-preview-card {
+  min-height: 180px;
+  transition: all 0.15s ease;
+}
+
+.flashcard-preview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1) !important;
+}
+
+.card-mastered {
+  border-left: 5px solid rgb(var(--v-theme-success)) !important;
+}
+
+.card-answer-text {
+  border-left: 2px solid var(--color-bg-2);
+  padding-left: 8px;
+  margin-top: 6px;
+}
+
+/* Study Deck */
+.study-flip-card {
+  min-height: 220px;
+  background-color: var(--color-bg-3);
+  border: 2px dashed rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.study-flip-card:hover {
+  border-color: var(--color-bg-2);
+  transform: scale(1.01);
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+}
+
+.preview-text {
+  background-color: var(--color-bg-3);
+  font-family: monospace;
+  font-size: 13px;
+  max-height: 480px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .cursor-pointer {

@@ -13,6 +13,21 @@
     --color-text-orange: #C9622C;
 }
 
+html.dark {
+    --color-primary: #191A1D;
+    --color-secondary: #202327;
+    --color-bg-1: #D36F3D;
+    --color-bg-2: #7A8B69;
+    --color-bg-3: #2E3339;
+    --color-bg-4: #3C424A;
+    --color-text-dark: #EBE9E4;
+    --color-text-light: #A29D92;
+    --color-text-blue: #4D90FE;
+    --color-text-purple: #A689CA;
+    --color-text-green: #889B77;
+    --color-text-orange: #D36F3D;
+}
+
 ::-webkit-scrollbar {
     display: none;
 }
@@ -45,4 +60,34 @@ body {
 .v-btn:hover {
     background: var(--color-bg-3);
     border-radius: 10px;
+}
+
+/* Print Stylesheet for PDF Export */
+@media print {
+    @page {
+        size: landscape;
+        margin: 10mm;
+    }
+
+    body, html, .v-application {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .v-navigation-drawer,
+    .no-print,
+    .v-btn,
+    .v-snackbar {
+        display: none !important;
+    }
+
+    .v-main {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .vuecal {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+    }
 }

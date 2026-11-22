@@ -36,7 +36,16 @@ func (c *ModuleController) GetModule(code string) (*models.Module, error) {
 func (c *ModuleController) CreateModule(module models.Module) (*models.Module, error) {
 	m, err := c.Service.CreateModule(&module)
 	if err != nil {
-		fmt.Println("Failed to create a module")
+		fmt.Println("Failed to create a module:", err)
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *ModuleController) UpdateModule(code string, module models.Module) (*models.Module, error) {
+	m, err := c.Service.UpdateModule(code, &module)
+	if err != nil {
+		fmt.Printf("Failed to update module %s: %v\n", code, err)
 		return nil, err
 	}
 	return m, nil

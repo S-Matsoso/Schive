@@ -21,7 +21,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 	}
 
 	err = db.AutoMigrate(
-		&models.Module{}, &models.File{}, &models.ClassSlot{})
+		&models.Module{}, &models.File{}, &models.ClassSlot{}, &models.Folder{}, &models.Assignment{}, &models.Flashcard{})
 	if err != nil {
 		fmt.Printf("Failed to migrate database: %v\n", err)
 		return nil, err

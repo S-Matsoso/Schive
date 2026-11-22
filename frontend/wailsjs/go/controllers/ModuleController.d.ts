@@ -9,3 +9,5 @@ export function DeleteModule(arg1:string):Promise<string>;
 export function GetAllModules():Promise<Array<models.Module>>;
 
 export function GetModule(arg1:string):Promise<models.Module>;
+
+export function UpdateModule(arg1:string,arg2:models.Module):Promise<models.Module>;
