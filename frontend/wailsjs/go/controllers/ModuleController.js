@@ -17,3 +17,7 @@ export function GetAllModules() {
 export function GetModule(arg1) {
   return window['go']['controllers']['ModuleController']['GetModule'](arg1);
 }
+
+export function UpdateModule(arg1, arg2) {
+  return window['go']['controllers']['ModuleController']['UpdateModule'](arg1, arg2);
+}

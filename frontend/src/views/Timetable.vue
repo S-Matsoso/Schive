@@ -1,30 +1,50 @@
 <template>
-  <div class="timetable-page">
-    <div class="d-flex justify-space-between align-center mb-6">
+  <div class="timetable-page pa-6">
+    <!-- Print Only Header for PDF Export -->
+    <div class="print-only text-center mb-4">
+      <h1 class="text-h4 font-weight-bold">SCHIVE — Weekly Timetable Schedule</h1>
+      <div class="text-subtitle-2 text-grey">Exported on {{ formattedExportDate }}</div>
+    </div>
+
+    <!-- Screen Header -->
+    <div class="d-flex justify-space-between align-center mb-6 no-print flex-wrap ga-3">
       <div>
         <h1 class="text-h4 font-weight-bold">Timetable</h1>
-        <p class="text-subtitle-2 text-grey-darken-1">View and manage your weekly module schedule</p>
+        <p class="text-subtitle-2 text-grey-darken-1">View your weekly class schedule and assignment deadlines</p>
       </div>
-      <v-btn
-        color="color-bg-2"
-        prepend-icon="mdi-plus"
-        variant="flat"
-        class="text-none font-weight-medium rounded-lg"
-        @click="openAddDialog"
-      >
-        Add Class Slot
-      </v-btn>
+
+      <div class="d-flex ga-2 flex-wrap">
+        <v-btn
+          prepend-icon="mdi-file-pdf-box"
+          variant="outlined"
+          color="color-bg-2"
+          class="text-none font-weight-medium rounded-lg"
+          @click="exportTimetablePDF"
+        >
+          Export PDF
+        </v-btn>
+
+        <v-btn
+          color="color-bg-2"
+          prepend-icon="mdi-plus"
+          variant="flat"
+          class="text-none font-weight-medium rounded-lg"
+          @click="openAddDialog"
+        >
+          Add Class Slot
+        </v-btn>
+      </div>
     </div>
 
     <!-- Calendar View -->
-    <v-card class="pa-2 rounded-lg" elevation="2">
+    <v-card class="pa-2 rounded-lg timetable-calendar-card" elevation="2">
       <div v-if="isLoading" class="d-flex justify-center align-center py-12">
         <v-progress-circular indeterminate color="color-bg-2"></v-progress-circular>
       </div>
       <vue-cal
         v-else
         class="custom-vuecal"
-        style="height: 650px;"
+        style="height: 670px;"
         active-view="week"
         :views="['week', 'day']"
         :time-from="7 * 60"
@@ -35,8 +55,20 @@
         :events="calendarEvents"
       >
         <template #event="{ event }">
+          <!-- Deadline Event Slot -->
           <div
-            class="timetable-slot"
+            v-if="event.isDeadline"
+            class="timetable-slot deadline-slot pa-2"
+            @click.stop="openDetails(event)"
+          >
+            <div class="slot-code font-weight-bold text-truncate">📌 {{ event.title }}</div>
+            <div class="slot-room text-caption">Due Date</div>
+          </div>
+
+          <!-- Normal Class Slot -->
+          <div
+            v-else
+            class="timetable-slot pa-2"
             :style="{ backgroundColor: event.color }"
             @click.stop="openDetails(event)"
           >
@@ -77,7 +109,7 @@
             class="mb-2"
           ></v-select>
 
-          <div class="d-flex gap-3">
+          <div class="d-flex ga-3">
             <v-select
               v-model="slotForm.startHour"
               :items="timeOptions"
@@ -110,7 +142,7 @@
             class="mb-4"
           ></v-text-field>
 
-          <div class="d-flex justify-end gap-2">
+          <div class="d-flex justify-end ga-2">
             <v-btn type="button" variant="text" @click="closeAddDialog">Cancel</v-btn>
             <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSaving">
               Save Slot
@@ -120,46 +152,71 @@
       </v-card>
     </v-dialog>
 
-    <!-- Dialog: Slot Details & Delete -->
-    <v-dialog v-model="detailsDialog" width="380">
+    <!-- Dialog: Slot Details / Deadline Details -->
+    <v-dialog v-model="detailsDialog" width="400">
       <v-card v-if="selectedEvent" class="pa-6 rounded-lg" elevation="4">
-        <div class="d-flex align-center justify-space-between mb-3">
-          <div class="d-flex align-center gap-2">
-            <span
-              class="module-dot"
-              :style="{ backgroundColor: selectedEvent.color }"
-            ></span>
-            <h3 class="text-h6 font-weight-bold">{{ selectedEvent.title }}</h3>
+        <!-- If Deadline -->
+        <template v-if="selectedEvent.isDeadline">
+          <div class="d-flex align-center justify-space-between mb-2">
+            <div class="d-flex align-center ga-2">
+              <v-icon icon="mdi-alert-circle-outline" color="error"></v-icon>
+              <h3 class="text-h6 font-weight-bold">Assignment Deadline</h3>
+            </div>
+            <v-chip size="x-small" color="error" variant="flat" class="text-uppercase font-weight-bold">
+              {{ selectedEvent.assignment?.priority || 'Medium' }}
+            </v-chip>
           </div>
-          <v-chip size="small" variant="tonal" :color="selectedEvent.color">
-            {{ selectedEvent.dayName }}
-          </v-chip>
-        </div>
+          <div class="text-subtitle-1 font-weight-bold mb-1">{{ selectedEvent.assignment?.title }}</div>
+          <p v-if="selectedEvent.assignment?.description" class="text-body-2 text-grey-darken-1 mb-3">
+            {{ selectedEvent.assignment?.description }}
+          </p>
+          <div class="text-caption text-grey mb-4">
+            <div>Module: <strong>{{ selectedEvent.assignment?.module?.code }}</strong></div>
+            <div>Due: <strong>{{ selectedEvent.start }}</strong></div>
+            <div>Status: <strong>{{ selectedEvent.assignment?.status }}</strong></div>
+          </div>
+          <div class="d-flex justify-end">
+            <v-btn variant="text" @click="detailsDialog = false">Close</v-btn>
+          </div>
+        </template>
 
-        <p v-if="selectedEvent.moduleName" class="text-body-2 text-grey-darken-1 mb-2">
-          {{ selectedEvent.moduleName }}
-        </p>
+        <!-- If Class Slot -->
+        <template v-else>
+          <div class="d-flex align-center justify-space-between mb-3">
+            <div class="d-flex align-center ga-2">
+              <span class="module-dot" :style="{ backgroundColor: selectedEvent.color }"></span>
+              <h3 class="text-h6 font-weight-bold">{{ selectedEvent.title }}</h3>
+            </div>
+            <v-chip size="small" variant="tonal" :color="selectedEvent.color">
+              {{ selectedEvent.dayName }}
+            </v-chip>
+          </div>
 
-        <v-divider class="my-3"></v-divider>
+          <p v-if="selectedEvent.moduleName" class="text-body-2 text-grey-darken-1 mb-2">
+            {{ selectedEvent.moduleName }}
+          </p>
 
-        <div class="text-body-2 mb-2">
-          <strong>Time:</strong> {{ selectedEvent.timeFormatted }}
-        </div>
-        <div v-if="selectedEvent.room" class="text-body-2 mb-4">
-          <strong>Room:</strong> {{ selectedEvent.room }}
-        </div>
+          <v-divider class="my-3"></v-divider>
 
-        <div class="d-flex justify-space-between align-center mt-4">
-          <v-btn
-            color="error"
-            variant="text"
-            prepend-icon="mdi-delete"
-            @click="handleDeleteSlot(selectedEvent.slotId)"
-          >
-            Delete Slot
-          </v-btn>
-          <v-btn type="button" variant="text" @click="detailsDialog = false">Close</v-btn>
-        </div>
+          <div class="text-body-2 mb-2">
+            <strong>Time:</strong> {{ selectedEvent.timeFormatted }}
+          </div>
+          <div v-if="selectedEvent.room" class="text-body-2 mb-4">
+            <strong>Room:</strong> {{ selectedEvent.room }}
+          </div>
+
+          <div class="d-flex justify-space-between align-center mt-4">
+            <v-btn
+              color="error"
+              variant="text"
+              prepend-icon="mdi-delete"
+              @click="handleDeleteSlot(selectedEvent.slotId)"
+            >
+              Delete Slot
+            </v-btn>
+            <v-btn type="button" variant="text" @click="detailsDialog = false">Close</v-btn>
+          </div>
+        </template>
       </v-card>
     </v-dialog>
 
@@ -176,10 +233,12 @@ import { VueCal } from 'vue-cal'
 import 'vue-cal/style'
 import { GetAllModules } from '../../wailsjs/go/controllers/ModuleController'
 import { GetAllClassSlots, CreateClassSlot, DeleteClassSlot } from '../../wailsjs/go/controllers/TimetableController'
+import { GetAllAssignments } from '../../wailsjs/go/controllers/AssignmentController'
 import { models } from '../../wailsjs/go/models'
 
 const modules = ref<models.Module[]>([])
 const classSlots = ref<models.ClassSlot[]>([])
+const assignments = ref<models.Assignment[]>([])
 const calendarEvents = ref<any[]>([])
 const isLoading = ref(true)
 const isSaving = ref(false)
@@ -191,6 +250,19 @@ const selectedEvent = ref<any>(null)
 const showAlert = ref(false)
 const alertMsg = ref('')
 const alertType = ref('success')
+
+const formattedExportDate = computed(() => {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+})
+
+function exportTimetablePDF() {
+  window.print()
+}
 
 const dayOptions = [
   { name: 'Monday', value: 'mon' },
@@ -276,7 +348,7 @@ function buildCalendarEvents() {
   const events: any[] = []
   const baseMonday = getMonday()
 
-  // Generate recurring events for weeks around the current date
+  // 1. Recurring weekly class slots
   for (let weekOffset = -4; weekOffset <= 12; weekOffset++) {
     for (const slot of classSlots.value) {
       const dayKey = (slot.day || 'mon').toLowerCase()
@@ -311,7 +383,33 @@ function buildCalendarEvents() {
         day: slot.day,
         dayName: dayNames[dayKey] || slot.day,
         timeFormatted: `${formatHour(startHour)} - ${formatHour(endHour)}`,
+        isDeadline: false
       })
+    }
+  }
+
+  // 2. Assignment deadlines
+  for (const assign of assignments.value) {
+    if (assign.dueDate && assign.status !== 'completed') {
+      const d = new Date(assign.dueDate)
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear()
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        const dateStr = `${year}-${month}-${day}`
+
+        events.push({
+          id: `deadline-${assign.id}`,
+          isDeadline: true,
+          assignment: assign,
+          start: `${dateStr} 17:00`,
+          end: `${dateStr} 18:00`,
+          title: `DUE: ${assign.title}`,
+          color: '#D32F2F',
+          timeFormatted: '5:00 PM',
+          dayName: d.toLocaleDateString(undefined, { weekday: 'long' })
+        })
+      }
     }
   }
 
@@ -321,12 +419,14 @@ function buildCalendarEvents() {
 async function fetchData() {
   try {
     isLoading.value = true
-    const [mods, slots] = await Promise.all([
+    const [mods, slots, assigns] = await Promise.all([
       GetAllModules(),
       GetAllClassSlots(),
+      GetAllAssignments()
     ])
     modules.value = mods || []
     classSlots.value = slots || []
+    assignments.value = assigns || []
     buildCalendarEvents()
   } catch (err: any) {
     alertMsg.value = 'Failed to load timetable data: ' + err
@@ -368,15 +468,16 @@ async function handleCreateSlot() {
       startHour: Number(slotForm.value.startHour),
       lengthHrs: Number(slotForm.value.lengthHrs),
       room: slotForm.value.room?.trim() || '',
+      module: undefined,
     }))
 
     addDialog.value = false
-    alertMsg.value = 'Class slot added successfully!'
+    alertMsg.value = 'Class slot added successfully'
     alertType.value = 'success'
     showAlert.value = true
     await fetchData()
   } catch (err: any) {
-    alertMsg.value = 'Failed to add class slot: ' + err
+    alertMsg.value = 'Failed to create class slot: ' + err
     alertType.value = 'error'
     showAlert.value = true
   } finally {
@@ -390,15 +491,16 @@ function openDetails(event: any) {
 }
 
 async function handleDeleteSlot(slotId: string) {
+  if (!slotId) return
   try {
     await DeleteClassSlot(slotId)
     detailsDialog.value = false
-    alertMsg.value = 'Class slot deleted successfully!'
+    alertMsg.value = 'Class slot removed'
     alertType.value = 'success'
     showAlert.value = true
     await fetchData()
   } catch (err: any) {
-    alertMsg.value = 'Failed to delete class slot: ' + err
+    alertMsg.value = 'Failed to delete slot: ' + err
     alertType.value = 'error'
     showAlert.value = true
   }
@@ -414,31 +516,22 @@ onMounted(() => {
   width: 100%;
 }
 
-.module-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
 .timetable-slot {
-  width: 100%;
   height: 100%;
-  padding: 6px 8px;
+  width: 100%;
   border-radius: 6px;
-  color: #fff;
-  cursor: pointer;
-  overflow: hidden;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.timetable-slot:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+.deadline-slot {
+  background-color: #D32F2F !important;
+  border-left: 4px solid #B71C1C;
 }
 
 .slot-code {
@@ -447,29 +540,36 @@ onMounted(() => {
 }
 
 .slot-room {
+  opacity: 0.95;
   font-size: 11px;
-  opacity: 0.9;
-  margin-top: 2px;
 }
 
 .slot-time {
-  font-size: 10px;
   opacity: 0.85;
-  margin-top: auto;
+  font-size: 10.5px;
 }
 
-:deep(.vuecal__event) {
-  background-color: transparent !important;
-  border: none !important;
-  padding: 2px !important;
+.module-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-:deep(.vuecal__menu) {
-  background-color: var(--color-bg-3) !important;
+.print-only {
+  display: none;
 }
 
-:deep(.vuecal__view-btn--active) {
-  border-bottom-color: var(--color-bg-2) !important;
-  color: var(--color-bg-2) !important;
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .timetable-page {
+    padding: 0 !important;
+  }
 }
 </style>

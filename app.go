@@ -9,14 +9,18 @@ import (
 
 // App struct
 type App struct {
-	ctx                 context.Context
-	ModuleController    *controllers.ModuleController
-	FileController      *controllers.FileController
-	TimetableController *controllers.TimetableController
+	ctx                  context.Context
+	ModuleController     *controllers.ModuleController
+	FileController       *controllers.FileController
+	TimetableController  *controllers.TimetableController
+	AssignmentController *controllers.AssignmentController
+	FlashcardController  *controllers.FlashcardController
+	BackupController     *controllers.BackupController
 }
 
 func NewApp() *App {
-	db, err := store.InitDB("schiveApplicationDB.db")
+	dbPath := "schiveApplicationDB.db"
+	db, err := store.InitDB(dbPath)
 	if err != nil {
 		panic(err)
 	}
@@ -24,11 +28,17 @@ func NewApp() *App {
 	moduleService := services.NewModuleService(db)
 	fileService := services.NewFileService(db)
 	timeTableService := services.NewTimetableService(db)
+	assignmentService := services.NewAssignmentService(db)
+	flashcardService := services.NewFlashcardService(db)
+	backupService := services.NewBackupService(dbPath)
 
 	return &App{
-		ModuleController:    controllers.NewModuleController(moduleService),
-		FileController:      controllers.NewFileController(fileService),
-		TimetableController: controllers.NewTimetableController(timeTableService),
+		ModuleController:     controllers.NewModuleController(moduleService),
+		FileController:       controllers.NewFileController(fileService),
+		TimetableController:  controllers.NewTimetableController(timeTableService),
+		AssignmentController: controllers.NewAssignmentController(assignmentService),
+		FlashcardController:  controllers.NewFlashcardController(flashcardService),
+		BackupController:     controllers.NewBackupController(backupService),
 	}
 }
 
