@@ -104,16 +104,32 @@
               <h2 class="text-h6 font-weight-bold">Today's Schedule ({{ currentDayName }})</h2>
             </div>
             <div class="d-flex ga-2">
-              <v-chip v-if="todayClasses.length" size="small" variant="tonal" color="color-bg-2">
+              <v-chip
+                v-if="todayClasses.length"
+                size="small"
+                :variant="scheduleFilter === 'classes' ? 'flat' : 'tonal'"
+                color="color-bg-2"
+                class="cursor-pointer"
+                title="Show only classes"
+                @click="toggleScheduleFilter('classes')"
+              >
                 {{ todayClasses.length }} {{ todayClasses.length === 1 ? 'class' : 'classes' }}
               </v-chip>
-              <v-chip v-if="todayAssignments.length" size="small" variant="tonal" color="warning">
+              <v-chip
+                v-if="todayAssignments.length"
+                size="small"
+                :variant="scheduleFilter === 'assignments' ? 'flat' : 'tonal'"
+                color="warning"
+                class="cursor-pointer"
+                title="Show only assignments due today"
+                @click="toggleScheduleFilter('assignments')"
+              >
                 {{ todayAssignments.length }} due today
               </v-chip>
             </div>
           </div>
 
-          <div v-if="todayClasses.length === 0 && todayAssignments.length === 0" class="py-8 text-center text-grey">
+          <div v-if="visibleClasses.length === 0 && visibleAssignments.length === 0" class="py-8 text-center text-grey">
             <v-icon icon="mdi-calendar-check-outline" size="44" class="mb-2 text-grey-lighten-1"></v-icon>
             <div class="font-weight-medium">No classes or deadlines for today!</div>
             <div class="text-caption">Take time to catch up on revision or assignments.</div>
@@ -122,7 +138,7 @@
           <div v-else class="d-flex flex-column ga-3">
             <!-- Class slots -->
             <v-card
-              v-for="slot in todayClasses"
+              v-for="slot in visibleClasses"
               :key="slot.id"
               class="pa-3 rounded-lg border d-flex align-center justify-space-between"
               variant="flat"
@@ -133,19 +149,19 @@
                   <div class="font-weight-bold">{{ slot.module?.code || 'Module' }} — {{ slot.module?.name }}</div>
                   <div class="text-caption text-grey d-flex align-center ga-2 mt-1">
                     <span v-if="slot.room"><v-icon icon="mdi-map-marker-outline" size="14"></v-icon> {{ slot.room }}</span>
-                    <span><v-icon icon="mdi-clock-time-four-outline" size="14"></v-icon> {{ formatTimeRange(slot.startHour, slot.lengthHrs) }}</span>
+                    <span><v-icon icon="mdi-clock-time-four-outline" size="14"></v-icon> {{ formatTimeRange(slot.startHour, slotDurationMins(slot)) }}</span>
                   </div>
                 </div>
               </div>
 
               <v-chip size="small" variant="tonal" :color="slot.module?.color || 'primary'">
-                {{ slot.lengthHrs }}h
+                {{ formatDuration(slotDurationMins(slot)) }}
               </v-chip>
             </v-card>
 
             <!-- Assignments due today -->
             <v-card
-              v-for="assign in todayAssignments"
+              v-for="assign in visibleAssignments"
               :key="'due-' + assign.id"
               class="pa-3 rounded-lg border d-flex align-center justify-space-between flex-wrap ga-2"
               variant="flat"
@@ -422,6 +438,21 @@ const todayAssignments = computed(() => {
   })
 })
 
+// Filter for the today's schedule pills
+const scheduleFilter = ref<'all' | 'classes' | 'assignments'>('all')
+
+function toggleScheduleFilter(filter: 'classes' | 'assignments') {
+  scheduleFilter.value = scheduleFilter.value === filter ? 'all' : filter
+}
+
+const visibleClasses = computed(() =>
+  scheduleFilter.value === 'assignments' ? [] : todayClasses.value
+)
+
+const visibleAssignments = computed(() =>
+  scheduleFilter.value === 'classes' ? [] : todayAssignments.value
+)
+
 // Pending assignments
 const pendingAssignments = computed(() => {
   return allAssignments.value.filter(a => a.status !== 'completed')
@@ -496,10 +527,24 @@ async function handleOpenFile(fileId: string) {
   }
 }
 
-function formatTimeRange(startHour: number, lengthHrs: number): string {
+function slotDurationMins(slot: any): number {
+  const mins = Number(slot.durationMins)
+  if (mins > 0) return mins
+  return (Number(slot.lengthHrs) || 1) * 60
+}
+
+function formatTimeRange(startHour: number, durationMins: number): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
-  const endHour = startHour + lengthHrs
-  return `${pad(startHour)}:00 - ${pad(endHour)}:00`
+  const start = startHour * 60
+  const end = start + durationMins
+  const fmt = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`
+  return `${fmt(start)} - ${fmt(end)}`
+}
+
+function formatDuration(mins: number): string {
+  if (mins < 60) return `${mins} min`
+  const hrs = mins / 60
+  return Number.isInteger(hrs) ? `${hrs}h` : `${hrs.toFixed(1)}h`
 }
 
 function formatDueDate(dateStr: any): string {

@@ -29,8 +29,15 @@ func (s *TimetableService) CreateClassSlot(slot *models.ClassSlot) (*models.Clas
 	if slot.ID == "" {
 		slot.ID = uuid.NewString()
 	}
+	if slot.DurationMins <= 0 {
+		if slot.LengthHrs > 0 {
+			slot.DurationMins = slot.LengthHrs * 60
+		} else {
+			slot.DurationMins = 60
+		}
+	}
 	if slot.LengthHrs <= 0 {
-		slot.LengthHrs = 1
+		slot.LengthHrs = (slot.DurationMins + 59) / 60
 	}
 	err := s.db.Create(slot).Error
 	if err != nil {
