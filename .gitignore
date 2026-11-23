@@ -7,3 +7,4 @@ frontend/dist
 schiveApplicationDB.db
 backups/
 .freebuff/
+uploads/*
