@@ -50,6 +50,7 @@ export namespace models {
 	    day: string;
 	    startHour: number;
 	    lengthHrs: number;
+	    durationMins: number;
 	    room: string;
 	    module?: Module;
 	
@@ -64,6 +65,7 @@ export namespace models {
 	        this.day = source["day"];
 	        this.startHour = source["startHour"];
 	        this.lengthHrs = source["lengthHrs"];
+	        this.durationMins = source["durationMins"];
 	        this.room = source["room"];
 	        this.module = this.convertValues(source["module"], Module);
 	    }

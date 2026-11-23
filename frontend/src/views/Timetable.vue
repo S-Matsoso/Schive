@@ -122,7 +122,7 @@
             ></v-select>
 
             <v-select
-              v-model="slotForm.lengthHrs"
+              v-model="slotForm.durationMins"
               :items="durationOptions"
               item-title="label"
               item-value="value"
@@ -289,17 +289,18 @@ const timeOptions = [
 ]
 
 const durationOptions = [
-  { label: '1 Hour', value: 1 },
-  { label: '2 Hours', value: 2 },
-  { label: '3 Hours', value: 3 },
-  { label: '4 Hours', value: 4 },
+  { label: '30 Minutes', value: 30 },
+  { label: '40 Minutes', value: 40 },
+  { label: '50 Minutes', value: 50 },
+  { label: '1 Hour', value: 60 },
+  { label: '2 Hours', value: 120 },
 ]
 
 const slotForm = ref({
   moduleId: '',
   day: 'mon',
   startHour: 8,
-  lengthHrs: 1,
+  durationMins: 60,
   room: '',
 })
 
@@ -338,10 +339,18 @@ const dayNames: Record<string, string> = {
   fri: 'Friday',
 }
 
-function formatHour(h: number) {
+function formatClock(totalMins: number) {
+  const h = Math.floor(totalMins / 60)
+  const m = totalMins % 60
   const period = h >= 12 ? 'PM' : 'AM'
   const displayHour = h % 12 || 12
-  return `${displayHour}:00 ${period}`
+  return `${displayHour}:${String(m).padStart(2, '0')} ${period}`
+}
+
+function slotDurationMins(slot: models.ClassSlot): number {
+  const mins = Number(slot.durationMins)
+  if (mins > 0) return mins
+  return (Number(slot.lengthHrs) || 1) * 60
 }
 
 function buildCalendarEvents() {
@@ -363,26 +372,27 @@ function buildCalendarEvents() {
       const dateStr = `${year}-${month}-${day}`
 
       const startHour = Number(slot.startHour) || 7
-      const lengthHrs = Number(slot.lengthHrs) || 1
-      const endHour = startHour + lengthHrs
+      const durationMins = slotDurationMins(slot)
+      const startMins = startHour * 60
+      const endMins = startMins + durationMins
 
-      const startHourStr = String(startHour).padStart(2, '0')
-      const endHourStr = String(endHour).padStart(2, '0')
+      const startTimeStr = `${String(Math.floor(startMins / 60)).padStart(2, '0')}:${String(startMins % 60).padStart(2, '0')}`
+      const endTimeStr = `${String(Math.floor(endMins / 60)).padStart(2, '0')}:${String(endMins % 60).padStart(2, '0')}`
 
       const mod = slot.module || modules.value.find(m => m.id === slot.moduleId)
 
       events.push({
         id: `${slot.id}-${weekOffset}`,
         slotId: slot.id,
-        start: `${dateStr} ${startHourStr}:00`,
-        end: `${dateStr} ${endHourStr}:00`,
+        start: `${dateStr} ${startTimeStr}`,
+        end: `${dateStr} ${endTimeStr}`,
         title: mod?.code || 'Module',
         moduleName: mod?.name || '',
         room: slot.room,
         color: mod?.color || '#C9622C',
         day: slot.day,
         dayName: dayNames[dayKey] || slot.day,
-        timeFormatted: `${formatHour(startHour)} - ${formatHour(endHour)}`,
+        timeFormatted: `${formatClock(startMins)} - ${formatClock(endMins)}`,
         isDeadline: false
       })
     }
@@ -447,7 +457,7 @@ function openAddDialog() {
   slotForm.value.moduleId = modules.value[0]?.id || ''
   slotForm.value.day = 'mon'
   slotForm.value.startHour = 8
-  slotForm.value.lengthHrs = 1
+  slotForm.value.durationMins = 60
   slotForm.value.room = ''
   addDialog.value = true
 }
@@ -466,7 +476,8 @@ async function handleCreateSlot() {
       moduleId: slotForm.value.moduleId,
       day: slotForm.value.day,
       startHour: Number(slotForm.value.startHour),
-      lengthHrs: Number(slotForm.value.lengthHrs),
+      lengthHrs: Math.ceil(Number(slotForm.value.durationMins) / 60),
+      durationMins: Number(slotForm.value.durationMins),
       room: slotForm.value.room?.trim() || '',
       module: undefined,
     }))
