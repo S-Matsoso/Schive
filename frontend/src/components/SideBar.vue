@@ -32,7 +32,7 @@
 
         <router-link to="/tasks" class="nav-item" active-class="active">
           <v-icon icon="mdi-clipboard-check-outline" size="20"></v-icon>
-          <span class="label">Tasks</span>
+          <span class="label">Assignments</span>
         </router-link>
 
         <div class="nav-item cursor-pointer" @click="openSearchDialog">
@@ -48,51 +48,109 @@
       <nav class="nav-list px-2">
         <div class="d-flex justify-space-between align-center px-2 py-1 mb-1">
           <span class="sidebar-subtitle">MODULES</span>
-          <v-btn
-            icon="mdi-plus"
-            size="x-small"
-            variant="text"
-            color="color-bg-2"
-            title="Add module"
-            @click="dialog = true"
-          ></v-btn>
+          <div class="d-flex align-center">
+            <v-btn
+              icon="mdi-folder-plus"
+              size="x-small"
+              variant="text"
+              color="color-bg-2"
+              title="New folder"
+              @click="openCreateFolderDialog"
+            ></v-btn>
+            <v-btn
+              icon="mdi-plus"
+              size="x-small"
+              variant="text"
+              color="color-bg-2"
+              title="Add module"
+              @click="dialog = true"
+            ></v-btn>
+          </div>
         </div>
 
         <div v-if="isLoading" class="px-3 py-1 text-caption text-grey">Loading modules...</div>
 
-        <div
-          v-for="mod in modules"
-          :key="mod.id"
-          class="module-row d-flex align-center justify-space-between rounded-lg"
-        >
-          <router-link
-            :to="`/module/${mod.code}`"
-            class="nav-item flex-grow-1 overflow-hidden"
-            active-class="active"
-          >
-            <span class="module-dot" :style="{ backgroundColor: mod.color }"></span>
-            <span class="label text-truncate" :title="mod.name || mod.code">
-              {{ mod.name?.trim() ? mod.name : mod.code }}
-            </span>
-          </router-link>
+        <template v-else>
+          <div v-for="group in moduleGroups" :key="group.id || 'unfiled'" class="module-group">
+            <!-- Folder header -->
+            <div
+              v-if="group.id || folders.length"
+              class="folder-row d-flex align-center ga-1 rounded-lg px-2 py-1 cursor-pointer"
+              @click="group.id ? toggleFolder(group.id) : undefined"
+            >
+              <v-icon
+                :icon="group.id && collapsedFolders[group.id] ? 'mdi-chevron-right' : 'mdi-chevron-down'"
+                size="14"
+              ></v-icon>
+              <v-icon :icon="group.id ? 'mdi-folder-outline' : 'mdi-folder-remove-outline'" size="15"></v-icon>
+              <span class="folder-label text-truncate" :title="group.name">{{ group.name }}</span>
+              <span class="folder-count ms-auto">{{ group.modules.length }}</span>
 
-          <!-- Module Actions Menu -->
-          <v-menu location="end">
-            <template #activator="{ props }">
-              <v-btn
-                v-bind="props"
-                icon="mdi-dots-vertical"
-                size="x-small"
-                variant="text"
-                class="module-more-btn"
-              ></v-btn>
-            </template>
-            <v-list density="compact" class="rounded-lg" elevation="3">
-              <v-list-item prepend-icon="mdi-pencil-outline" title="Edit Module" @click="openEditDialog(mod)"></v-list-item>
-              <v-list-item prepend-icon="mdi-delete-outline" title="Delete Module" class="text-error" @click="confirmDeleteModule(mod)"></v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
+              <v-menu v-if="group.id" location="end">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon="mdi-dots-vertical"
+                    size="x-small"
+                    variant="text"
+                    class="module-more-btn"
+                    @click.stop
+                  ></v-btn>
+                </template>
+                <v-list density="compact" class="rounded-lg" elevation="3">
+                  <v-list-item
+                    prepend-icon="mdi-pencil-outline"
+                    title="Rename Folder"
+                    @click="openRenameFolderDialog(group)"
+                  ></v-list-item>
+                  <v-list-item
+                    prepend-icon="mdi-delete-outline"
+                    title="Delete Folder"
+                    class="text-error"
+                    @click="confirmDeleteFolder(group)"
+                  ></v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+
+            <div v-show="!group.id || !collapsedFolders[group.id]" :class="{ 'folder-module-list': !!group.id }">
+              <div
+                v-for="mod in group.modules"
+                :key="mod.id"
+                class="module-row d-flex align-center justify-space-between rounded-lg"
+              >
+                <router-link
+                  :to="`/module/${mod.code}`"
+                  class="nav-item flex-grow-1 overflow-hidden"
+                  active-class="active"
+                >
+                  <span class="module-dot" :style="{ backgroundColor: mod.color }"></span>
+                  <span class="label text-truncate" :title="mod.name || mod.code">
+                    {{ mod.name?.trim() ? mod.name : mod.code }}
+                  </span>
+                </router-link>
+
+                <!-- Module Actions Menu -->
+                <v-menu location="end">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-dots-vertical"
+                      size="x-small"
+                      variant="text"
+                      class="module-more-btn"
+                    ></v-btn>
+                  </template>
+                  <v-list density="compact" class="rounded-lg" elevation="3">
+                    <v-list-item prepend-icon="mdi-pencil-outline" title="Edit Module" @click="openEditDialog(mod)"></v-list-item>
+                    <v-list-item prepend-icon="mdi-folder-move-outline" title="Move to Folder" @click="openMoveDialog(mod)"></v-list-item>
+                    <v-list-item prepend-icon="mdi-delete-outline" title="Delete Module" class="text-error" @click="confirmDeleteModule(mod)"></v-list-item>
+                  </v-list>
+                </v-menu>
+              </div>
+            </div>
+          </div>
+        </template>
       </nav>
     </div>
 
@@ -152,6 +210,18 @@
           required
         ></v-text-field>
 
+        <v-select
+          v-model="moduleData.folderId"
+          :items="folders"
+          item-title="name"
+          item-value="id"
+          label="Folder (optional)"
+          variant="outlined"
+          density="comfortable"
+          clearable
+          class="mb-2"
+        ></v-select>
+
         <v-text-field
           v-model="moduleData.color"
           type="color"
@@ -195,6 +265,18 @@
           required
         ></v-text-field>
 
+        <v-select
+          v-model="editData.folderId"
+          :items="folders"
+          item-title="name"
+          item-value="id"
+          label="Folder (optional)"
+          variant="outlined"
+          density="comfortable"
+          clearable
+          class="mb-2"
+        ></v-select>
+
         <v-text-field
           v-model="editData.color"
           type="color"
@@ -212,6 +294,34 @@
     </v-card>
   </v-dialog>
 
+  <!-- Move Module Dialog -->
+  <v-dialog persistent v-model="moveDialog" width="380">
+    <v-card v-if="moduleToMove" class="pa-6 rounded-lg" elevation="4">
+      <h3 class="text-h6 font-weight-medium mb-2">Move module</h3>
+      <p class="text-body-2 text-grey-darken-1 mb-4">
+        Choose a folder for <strong>{{ moduleToMove.code }}</strong>.
+      </p>
+
+      <v-select
+        v-model="moveFolderId"
+        :items="folders"
+        item-title="name"
+        item-value="id"
+        label="Folder"
+        variant="outlined"
+        density="comfortable"
+        clearable
+        placeholder="No folder"
+        class="mb-4"
+      ></v-select>
+
+      <div class="d-flex justify-end ga-2">
+        <v-btn variant="text" @click="moveDialog = false">Cancel</v-btn>
+        <v-btn color="color-bg-2" variant="flat" :loading="isMovingModule" @click="handleMoveModule">Move</v-btn>
+      </div>
+    </v-card>
+  </v-dialog>
+
   <!-- Delete Module Confirmation Dialog -->
   <v-dialog v-model="deleteDialog" width="420">
     <v-card v-if="moduleToDelete" class="pa-6 rounded-lg" elevation="4">
@@ -225,6 +335,66 @@
       <div class="d-flex justify-end ga-2">
         <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
         <v-btn color="error" variant="flat" :loading="isDeletingModule" @click="executeDeleteModule">Delete</v-btn>
+      </div>
+    </v-card>
+  </v-dialog>
+
+  <!-- Create Folder Dialog -->
+  <v-dialog persistent v-model="folderDialog" width="380">
+    <v-card class="pa-6 rounded-lg" elevation="4">
+      <h3 class="text-h6 font-weight-medium mb-4">New folder</h3>
+      <v-form ref="folderFormRef" @submit.prevent="handleCreateFolder">
+        <v-text-field
+          v-model="folderName"
+          label="Folder name"
+          placeholder="e.g. 2026 Modules"
+          variant="outlined"
+          density="comfortable"
+          :rules="folderNameRules"
+          class="mb-4"
+          autofocus
+          required
+        ></v-text-field>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="folderDialog = false">Cancel</v-btn>
+          <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSavingFolder">Create folder</v-btn>
+        </div>
+      </v-form>
+    </v-card>
+  </v-dialog>
+
+  <!-- Rename Folder Dialog -->
+  <v-dialog persistent v-model="renameFolderDialog" width="380">
+    <v-card class="pa-6 rounded-lg" elevation="4">
+      <h3 class="text-h6 font-weight-medium mb-4">Rename folder</h3>
+      <v-form @submit.prevent="handleRenameFolder">
+        <v-text-field
+          v-model="renameFolderName"
+          label="Folder name"
+          variant="outlined"
+          density="comfortable"
+          :rules="folderNameRules"
+          class="mb-4"
+          required
+        ></v-text-field>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="renameFolderDialog = false">Cancel</v-btn>
+          <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSavingFolder">Save</v-btn>
+        </div>
+      </v-form>
+    </v-card>
+  </v-dialog>
+
+  <!-- Delete Folder Confirmation Dialog -->
+  <v-dialog v-model="deleteFolderDialog" width="400">
+    <v-card v-if="folderToDelete" class="pa-6 rounded-lg" elevation="4">
+      <h3 class="text-h6 font-weight-medium mb-2 text-error">Delete folder?</h3>
+      <p class="text-body-2 text-grey-darken-1 mb-4">
+        Delete <strong>{{ folderToDelete.name }}</strong>? Modules inside it will not be deleted, they will move back to the top level.
+      </p>
+      <div class="d-flex justify-end ga-2">
+        <v-btn variant="text" @click="deleteFolderDialog = false">Cancel</v-btn>
+        <v-btn color="error" variant="flat" :loading="isSavingFolder" @click="executeDeleteFolder">Delete</v-btn>
       </div>
     </v-card>
   </v-dialog>
@@ -247,7 +417,7 @@
       <div class="search-results-list" style="max-height: 400px; overflow-y: auto;">
         <div v-if="!searchQuery.trim()" class="py-6 text-center text-grey">
           <v-icon icon="mdi-keyboard-outline" size="32" class="mb-1"></v-icon>
-          <div class="text-caption">Type to search modules, documents, and coursework tasks</div>
+          <div class="text-caption">Type to search modules, documents, and assignments</div>
         </div>
 
         <div v-else-if="filteredSearchResults.length === 0" class="py-6 text-center text-grey">
@@ -287,7 +457,16 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
-import { GetAllModules, CreateModule, UpdateModule, DeleteModule } from '../../wailsjs/go/controllers/ModuleController'
+import {
+  GetAllModules,
+  CreateModule,
+  UpdateModule,
+  DeleteModule,
+  GetAllModuleFolders,
+  CreateModuleFolder,
+  UpdateModuleFolder,
+  DeleteModuleFolder,
+} from '../../wailsjs/go/controllers/ModuleController'
 import { CreateBackup } from '../../wailsjs/go/controllers/BackupController'
 import { OpenFile } from '../../wailsjs/go/controllers/FileController'
 import { models } from '../../wailsjs/go/models'
@@ -315,13 +494,15 @@ const editFormRef = ref<any>(null)
 const moduleData = ref(models.Module.createFrom({
   code: '',
   name: '',
-  color: '#7A8B69'
+  color: '#7A8B69',
+  folderId: undefined,
 }))
 
 const editData = ref({
   code: '',
   name: '',
-  color: '#7A8B69'
+  color: '#7A8B69',
+  folderId: undefined as string | undefined,
 })
 
 const codeRules = [
@@ -353,7 +534,32 @@ const alertType = ref('success')
 const showAlert = ref(false)
 
 const modules = ref<models.Module[]>([])
+const folders = ref<models.ModuleFolder[]>([])
 const isLoading = ref(true)
+const collapsedFolders = ref<Record<string, boolean>>({})
+
+const moduleGroups = computed(() => {
+  const groups: { id: string | null; name: string; modules: models.Module[] }[] = []
+
+  for (const folder of folders.value) {
+    groups.push({
+      id: folder.id,
+      name: folder.name,
+      modules: modules.value.filter(m => m.folderId === folder.id),
+    })
+  }
+
+  const unfiled = modules.value.filter(m => !m.folderId || !folders.value.some(f => f.id === m.folderId))
+  if (unfiled.length > 0) {
+    groups.push({ id: null, name: folders.value.length ? 'Unfiled' : 'Modules', modules: unfiled })
+  }
+
+  return groups
+})
+
+function toggleFolder(id: string) {
+  collapsedFolders.value[id] = !collapsedFolders.value[id]
+}
 
 // Global Spotlight Search
 const searchDialog = ref(false)
@@ -453,7 +659,12 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 async function fetchModules() {
   try {
     isLoading.value = true
-    modules.value = await GetAllModules() || []
+    const [mods, folderList] = await Promise.all([
+      GetAllModules(),
+      GetAllModuleFolders(),
+    ])
+    modules.value = mods || []
+    folders.value = folderList || []
     isLoading.value = false
   } catch (err) {
     alertMsg.value = 'Failed to get available modules ' + (err as string)
@@ -502,6 +713,7 @@ function handleCancelCreateModule() {
   moduleData.value.code = ''
   moduleData.value.name = ''
   moduleData.value.color = '#7A8B69'
+  moduleData.value.folderId = undefined
 }
 
 function openEditDialog(mod: models.Module) {
@@ -509,6 +721,7 @@ function openEditDialog(mod: models.Module) {
   editData.value.code = mod.code
   editData.value.name = mod.name
   editData.value.color = mod.color || '#7A8B69'
+  editData.value.folderId = mod.folderId
   editDialog.value = true
 }
 
@@ -525,7 +738,8 @@ async function handleUpdateModule() {
       id: moduleToEdit.value.id,
       code: editData.value.code.trim(),
       name: editData.value.name.trim(),
-      color: editData.value.color.trim()
+      color: editData.value.color.trim(),
+      folderId: editData.value.folderId || undefined,
     })
     await UpdateModule(moduleToEdit.value.code, updated)
     editDialog.value = false
@@ -539,6 +753,48 @@ async function handleUpdateModule() {
     showAlert.value = true
   } finally {
     isUpdatingModule.value = false
+  }
+}
+
+// Move a module into / out of a folder
+const moveDialog = ref(false)
+const moduleToMove = ref<models.Module | null>(null)
+const moveFolderId = ref<string | null>(null)
+const isMovingModule = ref(false)
+
+function openMoveDialog(mod: models.Module) {
+  moduleToMove.value = mod
+  moveFolderId.value = mod.folderId || null
+  moveDialog.value = true
+}
+
+async function handleMoveModule() {
+  if (!moduleToMove.value) return
+  try {
+    isMovingModule.value = true
+    const updated = models.Module.createFrom({
+      id: moduleToMove.value.id,
+      code: moduleToMove.value.code,
+      name: moduleToMove.value.name,
+      color: moduleToMove.value.color,
+      folderId: moveFolderId.value || undefined,
+    })
+    await UpdateModule(moduleToMove.value.code, updated)
+    moveDialog.value = false
+
+    const folderName = folders.value.find(f => f.id === moveFolderId.value)?.name
+    alertMsg.value = folderName
+      ? `${moduleToMove.value.code} moved to ${folderName}`
+      : `${moduleToMove.value.code} removed from its folder`
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchModules()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to move module: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isMovingModule.value = false
   }
 }
 
@@ -564,6 +820,104 @@ async function executeDeleteModule() {
     showAlert.value = true
   } finally {
     isDeletingModule.value = false
+  }
+}
+
+// --- Module folders ---
+
+const folderDialog = ref(false)
+const renameFolderDialog = ref(false)
+const deleteFolderDialog = ref(false)
+const folderName = ref('')
+const renameFolderId = ref('')
+const renameFolderName = ref('')
+const folderToDelete = ref<models.ModuleFolder | null>(null)
+const isSavingFolder = ref(false)
+const folderFormRef = ref<any>(null)
+
+const folderNameRules = [
+  (value: string) => {
+    if (value && value.trim().length > 0) return true
+    return 'Folder name is required.'
+  }
+]
+
+function openCreateFolderDialog() {
+  folderName.value = ''
+  folderDialog.value = true
+}
+
+async function handleCreateFolder() {
+  if (folderFormRef.value) {
+    const { valid } = await folderFormRef.value.validate()
+    if (!valid) return
+  }
+
+  try {
+    isSavingFolder.value = true
+    await CreateModuleFolder(folderName.value.trim())
+    folderDialog.value = false
+    alertMsg.value = 'Folder created successfully'
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchModules()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to create folder: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingFolder.value = false
+  }
+}
+
+function openRenameFolderDialog(group: { id: string | null; name: string }) {
+  if (!group.id) return
+  renameFolderId.value = group.id
+  renameFolderName.value = group.name
+  renameFolderDialog.value = true
+}
+
+async function handleRenameFolder() {
+  if (!renameFolderId.value) return
+  try {
+    isSavingFolder.value = true
+    await UpdateModuleFolder(renameFolderId.value, renameFolderName.value.trim())
+    renameFolderDialog.value = false
+    alertMsg.value = 'Folder renamed successfully'
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchModules()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to rename folder: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingFolder.value = false
+  }
+}
+
+function confirmDeleteFolder(group: { id: string | null; name: string }) {
+  if (!group.id) return
+  folderToDelete.value = folders.value.find(f => f.id === group.id) || null
+  deleteFolderDialog.value = true
+}
+
+async function executeDeleteFolder() {
+  if (!folderToDelete.value) return
+  try {
+    isSavingFolder.value = true
+    await DeleteModuleFolder(folderToDelete.value.id)
+    deleteFolderDialog.value = false
+    alertMsg.value = `Deleted folder ${folderToDelete.value.name}`
+    alertType.value = 'success'
+    showAlert.value = true
+    await fetchModules()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to delete folder: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingFolder.value = false
   }
 }
 
@@ -649,6 +1003,41 @@ onUnmounted(() => {
 .nav-item.active {
   background: var(--color-bg-3);
   color: var(--color-bg-2);
+}
+
+.module-group {
+  margin-bottom: 4px;
+}
+
+.folder-row {
+  color: var(--color-text-light);
+  transition: background-color 0.15s ease;
+}
+
+.folder-row:hover {
+  background: var(--color-bg-3);
+}
+
+.folder-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.folder-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-text-light);
+  opacity: 0.8;
+}
+
+.folder-module-list {
+  padding-left: 10px;
+}
+
+.folder-row:hover .module-more-btn {
+  opacity: 1;
 }
 
 .module-row {

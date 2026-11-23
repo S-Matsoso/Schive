@@ -71,7 +71,7 @@
         <v-card class="pa-4 rounded-lg stat-card" elevation="1">
           <div class="d-flex align-center justify-space-between">
             <div>
-              <div class="text-caption text-grey">Pending Tasks</div>
+              <div class="text-caption text-grey">Pending Assignments</div>
               <div class="text-h4 font-weight-bold">{{ pendingAssignments.length }}</div>
             </div>
             <v-icon icon="mdi-clipboard-alert-outline" size="36" color="warning"></v-icon>
@@ -215,7 +215,7 @@
                 append-icon="mdi-arrow-right"
                 class="text-none font-weight-medium"
               >
-                All Tasks
+                All Assignments
               </v-btn>
             </div>
           </div>
@@ -282,26 +282,44 @@
             <span class="text-caption text-grey">{{ modules.length }} active</span>
           </div>
 
-          <div class="modules-quick-grid">
-            <v-card
-              v-for="mod in modules"
-              :key="mod.id"
-              :to="`/module/${mod.code}`"
-              class="pa-3 rounded-lg border module-quick-card cursor-pointer"
-              variant="flat"
-            >
-              <div class="d-flex align-center ga-2 mb-2">
-                <span class="module-dot" :style="{ backgroundColor: mod.color }"></span>
-                <span class="font-weight-bold text-subtitle-2" :style="{ color: mod.color }">{{ mod.code }}</span>
+          <div v-if="modules.length === 0" class="py-6 text-center text-grey">
+            <v-icon icon="mdi-book-outline" size="36" class="mb-2"></v-icon>
+            <div class="text-caption">No modules yet.</div>
+          </div>
+
+          <div v-else class="d-flex flex-column ga-4">
+            <div v-for="group in moduleGroups" :key="group.id || 'unfiled'">
+              <div
+                v-if="group.id || folders.length"
+                class="module-folder-heading d-flex align-center ga-2 mb-2"
+              >
+                <v-icon :icon="group.id ? 'mdi-folder-outline' : 'mdi-folder-remove-outline'" size="15" color="color-bg-2"></v-icon>
+                <span class="text-caption font-weight-bold text-uppercase">{{ group.name }}</span>
+                <span class="text-caption text-grey">{{ group.modules.length }}</span>
               </div>
-              <div class="text-caption font-weight-medium text-truncate mb-2" :title="mod.name">
-                {{ mod.name }}
+
+              <div class="modules-quick-grid">
+                <v-card
+                  v-for="mod in group.modules"
+                  :key="mod.id"
+                  :to="`/module/${mod.code}`"
+                  class="pa-3 rounded-lg border module-quick-card cursor-pointer"
+                  variant="flat"
+                >
+                  <div class="d-flex align-center ga-2 mb-2">
+                    <span class="module-dot" :style="{ backgroundColor: mod.color }"></span>
+                    <span class="font-weight-bold text-subtitle-2" :style="{ color: mod.color }">{{ mod.code }}</span>
+                  </div>
+                  <div class="text-caption font-weight-medium text-truncate mb-2" :title="mod.name">
+                    {{ mod.name }}
+                  </div>
+                  <div class="d-flex justify-space-between text-caption text-grey">
+                    <span>{{ mod.files?.length || 0 }} files</span>
+                    <span>{{ mod.assignments?.length || 0 }} assignments</span>
+                  </div>
+                </v-card>
               </div>
-              <div class="d-flex justify-space-between text-caption text-grey">
-                <span>{{ mod.files?.length || 0 }} files</span>
-                <span>{{ mod.assignments?.length || 0 }} tasks</span>
-              </div>
-            </v-card>
+            </div>
           </div>
         </v-card>
 
@@ -360,11 +378,12 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
 import { models } from '../../wailsjs/go/models'
-import { GetAllModules } from '../../wailsjs/go/controllers/ModuleController'
+import { GetAllModules, GetAllModuleFolders } from '../../wailsjs/go/controllers/ModuleController'
 import { GetAllAssignments, UpdateAssignmentStatus } from '../../wailsjs/go/controllers/AssignmentController'
 import { OpenFile } from '../../wailsjs/go/controllers/FileController'
 
 const modules = ref<models.Module[]>([])
+const folders = ref<models.ModuleFolder[]>([])
 const allAssignments = ref<models.Assignment[]>([])
 const isLoading = ref(false)
 
@@ -402,6 +421,25 @@ const greeting = computed(() => {
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
   return 'Good evening'
+})
+
+// Modules grouped by folder (empty folders are hidden on the dashboard)
+const moduleGroups = computed(() => {
+  const groups: { id: string | null; name: string; modules: models.Module[] }[] = []
+
+  for (const folder of folders.value) {
+    const grouped = modules.value.filter(m => m.folderId === folder.id)
+    if (grouped.length > 0) {
+      groups.push({ id: folder.id, name: folder.name, modules: grouped })
+    }
+  }
+
+  const unfiled = modules.value.filter(m => !m.folderId || !folders.value.some(f => f.id === m.folderId))
+  if (unfiled.length > 0) {
+    groups.push({ id: null, name: folders.value.length ? 'Unfiled' : 'Modules', modules: unfiled })
+  }
+
+  return groups
 })
 
 // Today's classes from all modules
@@ -488,11 +526,13 @@ const recentFiles = computed(() => {
 async function fetchAllData() {
   try {
     isLoading.value = true
-    const [mods, assigns] = await Promise.all([
+    const [mods, folderList, assigns] = await Promise.all([
       GetAllModules(),
+      GetAllModuleFolders(),
       GetAllAssignments()
     ])
     modules.value = mods || []
+    folders.value = folderList || []
     allAssignments.value = assigns || []
   } catch (err: any) {
     alertMsg.value = 'Failed to load dashboard data: ' + err
@@ -628,6 +668,11 @@ onMounted(() => {
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
+}
+
+.module-folder-heading {
+  color: var(--color-text-light);
+  letter-spacing: 0.4px;
 }
 
 .modules-quick-grid {

@@ -6,8 +6,20 @@ export function CreateModule(arg1) {
   return window['go']['controllers']['ModuleController']['CreateModule'](arg1);
 }
 
+export function CreateModuleFolder(arg1) {
+  return window['go']['controllers']['ModuleController']['CreateModuleFolder'](arg1);
+}
+
 export function DeleteModule(arg1) {
   return window['go']['controllers']['ModuleController']['DeleteModule'](arg1);
+}
+
+export function DeleteModuleFolder(arg1) {
+  return window['go']['controllers']['ModuleController']['DeleteModuleFolder'](arg1);
+}
+
+export function GetAllModuleFolders() {
+  return window['go']['controllers']['ModuleController']['GetAllModuleFolders']();
 }
 
 export function GetAllModules() {
@@ -20,4 +32,8 @@ export function GetModule(arg1) {
 
 export function UpdateModule(arg1, arg2) {
   return window['go']['controllers']['ModuleController']['UpdateModule'](arg1, arg2);
+}
+
+export function UpdateModuleFolder(arg1, arg2) {
+  return window['go']['controllers']['ModuleController']['UpdateModuleFolder'](arg1, arg2);
 }

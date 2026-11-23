@@ -14,6 +14,7 @@ type App struct {
 	FileController       *controllers.FileController
 	TimetableController  *controllers.TimetableController
 	AssignmentController *controllers.AssignmentController
+	TaskController       *controllers.TaskController
 	FlashcardController  *controllers.FlashcardController
 	BackupController     *controllers.BackupController
 }
@@ -29,6 +30,7 @@ func NewApp() *App {
 	fileService := services.NewFileService(db)
 	timeTableService := services.NewTimetableService(db)
 	assignmentService := services.NewAssignmentService(db)
+	taskService := services.NewTaskService(db)
 	flashcardService := services.NewFlashcardService(db)
 	backupService := services.NewBackupService(dbPath)
 
@@ -37,6 +39,7 @@ func NewApp() *App {
 		FileController:       controllers.NewFileController(fileService),
 		TimetableController:  controllers.NewTimetableController(timeTableService),
 		AssignmentController: controllers.NewAssignmentController(assignmentService),
+		TaskController:       controllers.NewTaskController(taskService),
 		FlashcardController:  controllers.NewFlashcardController(flashcardService),
 		BackupController:     controllers.NewBackupController(backupService),
 	}
@@ -46,6 +49,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.FileController.SetContext(ctx)
 }
 
 func (a *App) shutdown(ctx context.Context) {

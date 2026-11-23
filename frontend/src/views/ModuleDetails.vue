@@ -26,7 +26,10 @@
             {{ files.length }} {{ files.length === 1 ? 'file' : 'files' }}
           </v-chip>
           <v-chip color="warning" variant="tonal" prepend-icon="mdi-clipboard-text-clock-outline">
-            {{ assignments.length }} tasks
+            {{ assignments.length }} {{ assignments.length === 1 ? 'assignment' : 'assignments' }}
+          </v-chip>
+          <v-chip color="success" variant="tonal" prepend-icon="mdi-checkbox-marked-circle-outline">
+            {{ openTasksCount }} {{ openTasksCount === 1 ? 'task' : 'tasks' }}
           </v-chip>
           <v-chip color="info" variant="tonal" prepend-icon="mdi-cards-outline">
             {{ flashcards.length }} cards
@@ -50,6 +53,10 @@
         <v-tab value="assignments" prepend-icon="mdi-clipboard-text-clock-outline" class="text-none font-weight-bold">
           Assignments
           <v-chip size="x-small" color="warning" class="ms-2 font-weight-bold" variant="flat">{{ pendingAssignmentsCount }}</v-chip>
+        </v-tab>
+        <v-tab value="tasks" prepend-icon="mdi-checkbox-marked-circle-outline" class="text-none font-weight-bold">
+          Tasks
+          <v-chip size="x-small" color="success" class="ms-2 font-weight-bold" variant="flat">{{ openTasksCount }}</v-chip>
         </v-tab>
         <v-tab value="flashcards" prepend-icon="mdi-cards-outline" class="text-none font-weight-bold">
           Flashcards
@@ -366,6 +373,14 @@
                       title="Quick Preview"
                       @click.stop="openPreview(file)"
                     ></v-btn>
+                    <v-btn
+                      variant="text"
+                      size="small"
+                      icon="mdi-download-outline"
+                      color="grey-darken-2"
+                      title="Export a copy"
+                      @click.stop="handleExportFile(file)"
+                    ></v-btn>
                   </div>
 
                   <div class="d-flex ga-1">
@@ -482,6 +497,14 @@
                         @click.stop="openPreview(file)"
                       ></v-btn>
                       <v-btn
+                        icon="mdi-download-outline"
+                        variant="text"
+                        size="small"
+                        color="grey-darken-2"
+                        title="Export a copy"
+                        @click.stop="handleExportFile(file)"
+                      ></v-btn>
+                      <v-btn
                         icon="mdi-pencil-outline"
                         variant="text"
                         size="small"
@@ -581,6 +604,21 @@
                     {{ assign.description }}
                   </p>
 
+                  <div v-if="assign.files?.length" class="mt-2 d-flex flex-wrap ga-2">
+                    <v-chip
+                      v-for="f in assign.files"
+                      :key="f.id"
+                      size="small"
+                      variant="tonal"
+                      color="color-bg-2"
+                      prepend-icon="mdi-paperclip"
+                      class="cursor-pointer"
+                      @click="handleOpenFile(f.id)"
+                    >
+                      {{ f.name }}
+                    </v-chip>
+                  </div>
+
                   <div class="text-caption text-grey mt-2 d-flex align-center ga-3">
                     <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign.dueDate) ? 'text-error' : 'text-primary'">
                       <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
@@ -605,6 +643,16 @@
 
                 <!-- Assignment Actions -->
                 <div class="d-flex align-center ga-2">
+                  <v-btn
+                    size="small"
+                    variant="flat"
+                    color="color-bg-2"
+                    prepend-icon="mdi-open-in-new"
+                    class="text-none"
+                    @click="openAssignmentDetails(assign)"
+                  >
+                    Open
+                  </v-btn>
                   <v-btn
                     size="small"
                     variant="tonal"
@@ -659,7 +707,87 @@
           </div>
         </v-window-item>
 
-        <!-- ==================== TAB 3: FLASHCARDS ==================== -->
+        <!-- ==================== TAB 3: TASKS ==================== -->
+        <v-window-item value="tasks">
+          <div class="tasks-tab">
+            <div class="d-flex justify-space-between align-center flex-wrap ga-3 mb-4">
+              <v-btn-toggle
+                v-model="taskFilter"
+                mandatory
+                density="compact"
+                rounded="lg"
+                variant="outlined"
+                class="filter-toggle"
+              >
+                <v-btn value="open" size="small" class="text-none">Open ({{ openTasksCount }})</v-btn>
+                <v-btn value="done" size="small" class="text-none">Done ({{ tasks.length - openTasksCount }})</v-btn>
+                <v-btn value="all" size="small" class="text-none">All ({{ tasks.length }})</v-btn>
+              </v-btn-toggle>
+
+              <v-btn
+                prepend-icon="mdi-plus"
+                color="color-bg-2"
+                variant="flat"
+                class="text-none font-weight-medium rounded-lg"
+                @click="openCreateTaskDialog"
+              >
+                New Task
+              </v-btn>
+            </div>
+
+            <v-card v-if="filteredTasks.length === 0" class="pa-12 text-center rounded-lg" variant="tonal">
+              <v-icon icon="mdi-checkbox-marked-circle-outline" size="56" color="grey" class="mb-3"></v-icon>
+              <h3 class="text-h6 font-weight-medium mb-1">
+                {{ tasks.length === 0 ? 'No tasks yet' : 'Nothing to show' }}
+              </h3>
+              <p class="text-body-2 text-grey mb-4">
+                Quick to-dos for this module, kept separate from graded assignments and their instructions.
+              </p>
+              <v-btn color="color-bg-2" variant="flat" prepend-icon="mdi-plus" class="text-none rounded-lg" @click="openCreateTaskDialog">
+                Create Task
+              </v-btn>
+            </v-card>
+
+            <div v-else class="d-flex flex-column ga-2">
+              <v-card
+                v-for="task in filteredTasks"
+                :key="task.id"
+                class="pa-3 rounded-lg task-row"
+                elevation="1"
+              >
+                <div class="d-flex align-center ga-2">
+                  <v-checkbox-btn
+                    :model-value="task.done"
+                    color="success"
+                    hide-details
+                    @update:model-value="toggleTask(task)"
+                  ></v-checkbox-btn>
+
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="d-flex align-center ga-2 flex-wrap">
+                      <span class="font-weight-medium" :class="{ 'task-title--done': task.done }">{{ task.title }}</span>
+                      <v-chip
+                        v-if="task.dueDate"
+                        size="x-small"
+                        variant="tonal"
+                        :color="isTaskOverdue(task) ? 'error' : 'grey'"
+                        prepend-icon="mdi-calendar-clock"
+                      >
+                        {{ formatDueDateDisplay(task.dueDate) }}{{ isTaskOverdue(task) ? ' · overdue' : '' }}
+                      </v-chip>
+                    </div>
+                    <p v-if="task.notes" class="text-caption text-grey mt-1 mb-0 task-notes">{{ task.notes }}</p>
+                  </div>
+
+                  <v-btn icon="mdi-pencil-outline" size="small" variant="text" title="Edit task" @click="openEditTaskDialog(task)"></v-btn>
+                  <v-btn icon="mdi-delete-outline" size="small" variant="text" color="error" title="Delete task" @click="askDeleteTask(task)"></v-btn>
+                </div>
+              </v-card>
+            </div>
+          </div>
+        </v-window-item>
+
+        <!-- ==================== TAB 4: FLASHCARDS ==================== -->
         <v-window-item value="flashcards">
           <div class="flashcards-tab">
             <!-- Flashcards Toolbar -->
@@ -905,6 +1033,14 @@
       </v-card>
     </v-dialog>
 
+    <!-- Assignment Details Dialog -->
+    <AssignmentDetailsDialog
+      v-model="assignmentDetailDialog"
+      :assignment="detailAssignment"
+      @edit="openEditAssignmentDialog"
+      @files-changed="handleAssignmentFilesChanged"
+    />
+
     <!-- Create / Edit Assignment Dialog -->
     <v-dialog v-model="assignmentDialog" width="480">
       <v-card class="pa-6 rounded-lg" elevation="4">
@@ -921,6 +1057,20 @@
             </v-col>
           </v-row>
           <v-text-field v-model="assignmentForm.dueDate" type="date" label="Due Date" variant="outlined" density="comfortable" class="mb-4"></v-text-field>
+
+          <v-file-input
+            v-if="!editingAssignment"
+            v-model="assignmentFiles"
+            label="Assignment instructions (optional)"
+            variant="outlined"
+            density="comfortable"
+            prepend-icon=""
+            prepend-inner-icon="mdi-paperclip"
+            show-size
+            hint="Saved to the Assignments folder in Files"
+            persistent-hint
+            class="mb-5"
+          ></v-file-input>
 
           <div class="d-flex justify-end ga-2">
             <v-btn variant="text" @click="assignmentDialog = false">Cancel</v-btn>
@@ -1048,6 +1198,61 @@
       </v-card>
     </v-dialog>
 
+    <!-- Create / Edit Task Dialog -->
+    <v-dialog v-model="taskDialog" width="460">
+      <v-card class="pa-6 rounded-lg" elevation="4">
+        <h3 class="text-h6 font-weight-medium mb-1">{{ editingTask ? 'Edit Task' : 'New Task' }}</h3>
+        <p class="text-body-2 text-grey-darken-1 mb-4">
+          A simple to-do for this module. Graded work belongs in the Assignments tab.
+        </p>
+        <v-form @submit.prevent="saveTask">
+          <v-text-field
+            v-model="taskForm.title"
+            label="Title"
+            variant="outlined"
+            density="comfortable"
+            class="mb-2"
+            autofocus
+          ></v-text-field>
+          <v-textarea
+            v-model="taskForm.notes"
+            label="Notes"
+            variant="outlined"
+            density="comfortable"
+            rows="2"
+            class="mb-2"
+          ></v-textarea>
+          <v-text-field
+            v-model="taskForm.dueDate"
+            type="date"
+            label="Due date (optional)"
+            variant="outlined"
+            density="comfortable"
+            class="mb-4"
+          ></v-text-field>
+
+          <div class="d-flex justify-end ga-2">
+            <v-btn variant="text" class="text-none" @click="taskDialog = false">Cancel</v-btn>
+            <v-btn type="submit" color="color-bg-2" variant="flat" class="text-none" :loading="isSavingTask">
+              {{ editingTask ? 'Save Changes' : 'Create Task' }}
+            </v-btn>
+          </div>
+        </v-form>
+      </v-card>
+    </v-dialog>
+
+    <!-- Confirmation Dialog -->
+    <ConfirmDialog
+      v-model="confirmDialog"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :confirm-text="confirmText"
+      :tone="confirmTone"
+      :icon="confirmIcon"
+      :loading="confirmLoading"
+      @confirm="runConfirmedAction"
+    />
+
     <!-- Snackbar -->
     <v-snackbar v-model="showAlert" :color="alertType" timeout="3000">
       {{ alertMsg }}
@@ -1059,9 +1264,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { models } from '../../wailsjs/go/models'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import AssignmentDetailsDialog from '../components/AssignmentDetailsDialog.vue'
+import { exportSchiveFile } from '../utils/exportFile'
 import { GetModule } from '../../wailsjs/go/controllers/ModuleController'
 import {
   UploadFile,
+  UploadAssignmentInstructions,
   GetFilesByModule,
   DeleteFile,
   OpenFile,
@@ -1080,6 +1289,13 @@ import {
   UpdateAssignmentStatus,
   DeleteAssignment
 } from '../../wailsjs/go/controllers/AssignmentController'
+import {
+  CreateTask,
+  GetTasksByModule,
+  UpdateTask,
+  SetTaskDone,
+  DeleteTask
+} from '../../wailsjs/go/controllers/TaskController'
 import {
   CreateFlashcard,
   GetFlashcardsByModule,
@@ -1156,6 +1372,33 @@ const assignmentForm = ref({
   status: 'pending',
   dueDate: ''
 })
+const assignmentFiles = ref<File[] | File | null>(null)
+
+// Assignment details state
+const assignmentDetailDialog = ref(false)
+const detailAssignment = ref<models.Assignment | null>(null)
+
+// Tasks state & dialog (separate from assignments)
+const tasks = ref<models.Task[]>([])
+const taskFilter = ref<'open' | 'done' | 'all'>('open')
+const taskDialog = ref(false)
+const isSavingTask = ref(false)
+const editingTask = ref<models.Task | null>(null)
+const taskForm = ref({
+  title: '',
+  notes: '',
+  dueDate: ''
+})
+
+// Generic confirmation dialog state
+const confirmDialog = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmText = ref('Delete')
+const confirmTone = ref<'error' | 'warning'>('error')
+const confirmIcon = ref('')
+const confirmLoading = ref(false)
+let pendingConfirm: (() => Promise<void>) | null = null
 
 // Flashcards state & dialog
 const flashcardDialog = ref(false)
@@ -1232,6 +1475,14 @@ const pendingAssignmentsCount = computed(() => {
   return assignments.value.filter(a => a.status !== 'completed').length
 })
 
+const openTasksCount = computed(() => tasks.value.filter(t => !t.done).length)
+
+const filteredTasks = computed(() => {
+  if (taskFilter.value === 'open') return tasks.value.filter(t => !t.done)
+  if (taskFilter.value === 'done') return tasks.value.filter(t => t.done)
+  return tasks.value
+})
+
 const filteredAssignments = computed(() => {
   if (assignmentFilter.value === 'all') return assignments.value
   return assignments.value.filter(a => a.status === assignmentFilter.value)
@@ -1249,6 +1500,7 @@ async function fetchModuleDetails() {
         fetchFolders(),
         fetchFiles(),
         fetchAssignments(),
+        fetchTasks(),
         fetchFlashcards()
       ])
     }
@@ -1287,8 +1539,21 @@ async function fetchAssignments() {
   if (!currentModule.value?.id) return
   try {
     assignments.value = await GetAssignmentsByModule(currentModule.value.id) || []
+    if (detailAssignment.value) {
+      const id = detailAssignment.value.id
+      detailAssignment.value = assignments.value.find(a => a.id === id) || detailAssignment.value
+    }
   } catch (err: any) {
     console.error('Failed to load assignments:', err)
+  }
+}
+
+async function fetchTasks() {
+  if (!currentModule.value?.id) return
+  try {
+    tasks.value = await GetTasksByModule(currentModule.value.id) || []
+  } catch (err: any) {
+    console.error('Failed to load tasks:', err)
   }
 }
 
@@ -1545,10 +1810,18 @@ function openCreateAssignmentDialog() {
     status: 'pending',
     dueDate: ''
   }
+  assignmentFiles.value = null
   assignmentDialog.value = true
 }
 
+function getSelectedAssignmentFile(): File | null {
+  const selected = assignmentFiles.value
+  if (!selected) return null
+  return Array.isArray(selected) ? selected[0] ?? null : selected
+}
+
 function openEditAssignmentDialog(assign: models.Assignment) {
+  assignmentDetailDialog.value = false
   editingAssignment.value = assign
   let formattedDate = ''
   if (assign.dueDate) {
@@ -1572,6 +1845,7 @@ async function saveAssignment() {
   const title = assignmentForm.value.title.trim()
   if (!title) return
 
+  let uploadFailed = false
   try {
     isSavingAssignment.value = true
     if (editingAssignment.value) {
@@ -1585,7 +1859,7 @@ async function saveAssignment() {
       )
       alertMsg.value = 'Assignment updated!'
     } else {
-      await CreateAssignment(
+      const created = await CreateAssignment(
         currentModule.value.id,
         title,
         assignmentForm.value.description,
@@ -1594,12 +1868,26 @@ async function saveAssignment() {
         assignmentForm.value.priority,
         assignmentForm.value.dueDate
       )
-      alertMsg.value = 'Assignment created!'
+      const instructions = getSelectedAssignmentFile()
+      if (instructions) {
+        try {
+          const base64Data = await readFileAsBase64(instructions)
+          await UploadAssignmentInstructions(currentModule.value.id, created.id, instructions.name, base64Data)
+          alertMsg.value = 'Assignment created and instructions uploaded!'
+        } catch (uploadErr: any) {
+          uploadFailed = true
+          alertMsg.value = 'Assignment created, but instructions upload failed: ' + uploadErr
+        }
+      } else {
+        alertMsg.value = 'Assignment created!'
+      }
     }
     assignmentDialog.value = false
-    alertType.value = 'success'
+    alertType.value = uploadFailed ? 'error' : 'success'
     showAlert.value = true
     await fetchAssignments()
+    await fetchFolders()
+    await fetchFiles()
   } catch (err: any) {
     alertMsg.value = 'Failed to save assignment: ' + err
     alertType.value = 'error'
@@ -1607,6 +1895,32 @@ async function saveAssignment() {
   } finally {
     isSavingAssignment.value = false
   }
+}
+
+// Assignment details / created files
+function openAssignmentDetails(assign: models.Assignment) {
+  detailAssignment.value = assign
+  assignmentDetailDialog.value = true
+}
+
+async function handleExportFile(file: models.File) {
+  try {
+    const destination = await exportSchiveFile(file)
+    if (!destination) return
+    alertMsg.value = `Exported ${file.name} to ${destination}`
+    alertType.value = 'success'
+    showAlert.value = true
+  } catch (err: any) {
+    alertMsg.value = 'Failed to export file: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  }
+}
+
+async function handleAssignmentFilesChanged() {
+  await fetchFiles()
+  await fetchFolders()
+  await fetchAssignments()
 }
 
 function getProgressColor(progress?: number): string {
@@ -1653,19 +1967,148 @@ async function updateStatus(id: string, status: string) {
   }
 }
 
-async function confirmDeleteAssignment(assign: models.Assignment) {
-  if (!confirm(`Delete assignment "${assign.title}"?`)) return
+function confirmDeleteAssignment(assign: models.Assignment) {
+  askConfirm(
+    {
+      title: 'Delete assignment?',
+      message: `"${assign.title}" will be permanently removed, including its uploaded instructions.`,
+      confirmText: 'Delete assignment',
+      tone: 'error',
+      icon: 'mdi-clipboard-remove-outline'
+    },
+    async () => {
+      await DeleteAssignment(assign.id)
+      notifySuccess('Assignment deleted')
+      await fetchAssignments()
+    }
+  )
+}
+
+// Task actions
+function openCreateTaskDialog() {
+  editingTask.value = null
+  taskForm.value = { title: '', notes: '', dueDate: '' }
+  taskDialog.value = true
+}
+
+function openEditTaskDialog(task: models.Task) {
+  editingTask.value = task
+  let formattedDate = ''
+  if (task.dueDate) {
+    const d = new Date(task.dueDate)
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toISOString().split('T')[0]
+    }
+  }
+  taskForm.value = {
+    title: task.title,
+    notes: task.notes || '',
+    dueDate: formattedDate
+  }
+  taskDialog.value = true
+}
+
+async function saveTask() {
+  if (!currentModule.value?.id) return
+  const title = taskForm.value.title.trim()
+  if (!title) return
+
   try {
-    await DeleteAssignment(assign.id)
-    alertMsg.value = 'Assignment deleted'
-    alertType.value = 'success'
-    showAlert.value = true
-    await fetchAssignments()
+    isSavingTask.value = true
+    if (editingTask.value) {
+      await UpdateTask(editingTask.value.id, title, taskForm.value.notes, taskForm.value.dueDate)
+      notifySuccess('Task updated')
+    } else {
+      await CreateTask(currentModule.value.id, title, taskForm.value.notes, taskForm.value.dueDate)
+      notifySuccess('Task created')
+    }
+    taskDialog.value = false
+    await fetchTasks()
   } catch (err: any) {
-    alertMsg.value = 'Failed to delete assignment: ' + err
+    alertMsg.value = 'Failed to save task: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    isSavingTask.value = false
+  }
+}
+
+async function toggleTask(task: models.Task) {
+  try {
+    await SetTaskDone(task.id, !task.done)
+    await fetchTasks()
+  } catch (err: any) {
+    alertMsg.value = 'Failed to update task: ' + err
     alertType.value = 'error'
     showAlert.value = true
   }
+}
+
+function askDeleteTask(task: models.Task) {
+  askConfirm(
+    {
+      title: 'Delete task?',
+      message: `"${task.title}" will be permanently removed.`,
+      confirmText: 'Delete task',
+      tone: 'error',
+      icon: 'mdi-trash-can-outline'
+    },
+    async () => {
+      await DeleteTask(task.id)
+      notifySuccess('Task deleted')
+      await fetchTasks()
+    }
+  )
+}
+
+function isTaskOverdue(task: models.Task): boolean {
+  if (!task.dueDate || task.done) return false
+  const due = new Date(task.dueDate)
+  return !isNaN(due.getTime()) && due.getTime() < Date.now()
+}
+
+// Confirmation dialog helpers
+function askConfirm(
+  options: {
+    title: string
+    message: string
+    confirmText?: string
+    tone?: 'error' | 'warning'
+    icon?: string
+  },
+  action: () => Promise<void>
+) {
+  confirmTitle.value = options.title
+  confirmMessage.value = options.message
+  confirmText.value = options.confirmText || 'Delete'
+  confirmTone.value = options.tone || 'error'
+  confirmIcon.value = options.icon || ''
+  pendingConfirm = action
+  confirmDialog.value = true
+}
+
+async function runConfirmedAction() {
+  if (!pendingConfirm) return
+  const action = pendingConfirm
+  pendingConfirm = null
+  confirmLoading.value = true
+  try {
+    await action()
+    confirmDialog.value = false
+  } catch (err: any) {
+    confirmDialog.value = false
+    alertMsg.value = 'Action failed: ' + err
+    alertType.value = 'error'
+    showAlert.value = true
+  } finally {
+    confirmLoading.value = false
+  }
+}
+
+function notifySuccess(message: string) {
+  alertMsg.value = message
+  alertType.value = 'success'
+  showAlert.value = true
 }
 
 // Flashcard actions
@@ -1718,19 +2161,21 @@ async function toggleCardMastered(id: string) {
   }
 }
 
-async function confirmDeleteFlashcard(card: models.Flashcard) {
-  if (!confirm('Delete this flashcard?')) return
-  try {
-    await DeleteFlashcard(card.id)
-    alertMsg.value = 'Flashcard deleted'
-    alertType.value = 'success'
-    showAlert.value = true
-    await fetchFlashcards()
-  } catch (err: any) {
-    alertMsg.value = 'Failed to delete card: ' + err
-    alertType.value = 'error'
-    showAlert.value = true
-  }
+function confirmDeleteFlashcard(card: models.Flashcard) {
+  askConfirm(
+    {
+      title: 'Delete flashcard?',
+      message: 'This flashcard will be permanently removed from your deck.',
+      confirmText: 'Delete flashcard',
+      tone: 'error',
+      icon: 'mdi-cards-outline'
+    },
+    async () => {
+      await DeleteFlashcard(card.id)
+      notifySuccess('Flashcard deleted')
+      await fetchFlashcards()
+    }
+  )
 }
 
 // Study deck actions
@@ -1880,6 +2325,7 @@ watch(moduleCode, (newCode, oldCode) => {
     files.value = []
     folders.value = []
     assignments.value = []
+    tasks.value = []
     flashcards.value = []
     selectedFolderId.value = null
     searchQuery.value = ''
@@ -1954,6 +2400,24 @@ watch(moduleCode, (newCode, oldCode) => {
 
 .filter-toggle {
   height: 32px !important;
+}
+
+.task-row {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.task-row:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07) !important;
+}
+
+.task-title--done {
+  text-decoration: line-through;
+  color: var(--color-text-light, #9e9e9e);
+}
+
+.task-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .upload-btn {

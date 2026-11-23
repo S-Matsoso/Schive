@@ -1,6 +1,8 @@
 package services
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"os"
@@ -233,6 +235,149 @@ func (s *FileService) UploadFile(moduleID string, folderID string, name string, 
 	return &file, nil
 }
 
+// UploadAssignmentInstructions stores a file in the module's "Assignments" folder
+// (creating that folder when missing) and links it to the given assignment.
+func (s *FileService) UploadAssignmentInstructions(moduleID string, assignmentID string, name string, base64Data string) (*models.File, error) {
+	cleanModuleID := strings.TrimSpace(moduleID)
+	cleanAssignmentID := strings.TrimSpace(assignmentID)
+	if cleanModuleID == "" || cleanAssignmentID == "" {
+		return nil, errors.New("moduleID and assignmentID are required")
+	}
+
+	var assignment models.Assignment
+	if err := s.DB.First(&assignment, "id = ? AND module_id = ?", cleanAssignmentID, cleanModuleID).Error; err != nil {
+		return nil, errors.New("assignment not found")
+	}
+
+	folder, err := s.findOrCreateAssignmentFolder(cleanModuleID)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := s.UploadFile(cleanModuleID, folder.ID, name, base64Data)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.DB.Model(&models.File{}).Where("id = ?", file.ID).Update("assignment_id", cleanAssignmentID).Error; err != nil {
+		_ = os.Remove(file.Path)
+		_ = s.DB.Delete(&models.File{}, "id = ?", file.ID)
+		return nil, err
+	}
+	file.AssignmentID = &cleanAssignmentID
+
+	return file, nil
+}
+
+// CreateAssignmentFile creates a new editable document for an assignment inside
+// Schive's managed storage (the module's Assignments folder) and links it to the
+// assignment. Opening it in an external editor edits that Schive-owned copy.
+func (s *FileService) CreateAssignmentFile(moduleID string, assignmentID string, name string) (*models.File, error) {
+	cleanModuleID := strings.TrimSpace(moduleID)
+	cleanAssignmentID := strings.TrimSpace(assignmentID)
+	cleanName := filepath.Base(strings.TrimSpace(name))
+	if cleanModuleID == "" || cleanAssignmentID == "" {
+		return nil, errors.New("moduleID and assignmentID are required")
+	}
+	if cleanName == "" || cleanName == "." || cleanName == "/" {
+		return nil, errors.New("file name is required")
+	}
+
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(cleanName), "."))
+	if ext == "" {
+		return nil, errors.New("file name must include an extension")
+	}
+
+	var data []byte
+	switch ext {
+	case "docx":
+		generated, genErr := minimalDocx()
+		if genErr != nil {
+			return nil, genErr
+		}
+		data = generated
+	case "txt", "md":
+		data = []byte("")
+	default:
+		return nil, errors.New("only .docx, .txt and .md files can be created")
+	}
+
+	var assignment models.Assignment
+	if err := s.DB.First(&assignment, "id = ? AND module_id = ?", cleanAssignmentID, cleanModuleID).Error; err != nil {
+		return nil, errors.New("assignment not found")
+	}
+
+	folder, err := s.findOrCreateAssignmentFolder(cleanModuleID)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := s.UploadFile(cleanModuleID, folder.ID, cleanName, base64.StdEncoding.EncodeToString(data))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.DB.Model(&models.File{}).Where("id = ?", file.ID).Update("assignment_id", cleanAssignmentID).Error; err != nil {
+		_ = os.Remove(file.Path)
+		_ = s.DB.Delete(&models.File{}, "id = ?", file.ID)
+		return nil, err
+	}
+	file.AssignmentID = &cleanAssignmentID
+
+	return file, nil
+}
+
+// minimalDocx builds a valid empty Word document so writing apps can open it.
+func minimalDocx() ([]byte, error) {
+	files := map[string]string{
+		"[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`,
+		"_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+		"word/document.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p/><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`,
+	}
+
+	buffer := &bytes.Buffer{}
+	writer := zip.NewWriter(buffer)
+	for _, name := range []string{"[Content_Types].xml", "_rels/.rels", "word/document.xml"} {
+		entry, err := writer.Create(name)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := entry.Write([]byte(files[name])); err != nil {
+			return nil, err
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func (s *FileService) findOrCreateAssignmentFolder(moduleID string) (*models.Folder, error) {
+	var folder models.Folder
+	err := s.DB.Where("module_id = ? AND LOWER(name) = ?", moduleID, "assignments").First(&folder).Error
+	if err == nil {
+		return &folder, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	created, createErr := s.CreateFolder(moduleID, "Assignments")
+	if createErr == nil {
+		return created, nil
+	}
+
+	// A concurrent request may have created it in the meantime
+	if err := s.DB.Where("module_id = ? AND LOWER(name) = ?", moduleID, "assignments").First(&folder).Error; err != nil {
+		return nil, createErr
+	}
+	return &folder, nil
+}
+
 func (s *FileService) GetFilesByModule(moduleID string) ([]models.File, error) {
 	var files []models.File
 	err := s.DB.Where("module_id = ?", moduleID).Order("created_at desc").Find(&files).Error
@@ -267,6 +412,56 @@ func (s *FileService) DeleteFile(id string) error {
 	}
 
 	return s.DB.Delete(&models.File{}, "id = ?", id).Error
+}
+
+func (s *FileService) GetFile(id string) (*models.File, error) {
+	cleanID := strings.TrimSpace(id)
+	if cleanID == "" {
+		return nil, errors.New("fileID is required")
+	}
+
+	var file models.File
+	if err := s.DB.First(&file, "id = ?", cleanID).Error; err != nil {
+		return nil, err
+	}
+	return &file, nil
+}
+
+// ExportFile writes a copy of a Schive-owned file to destinationPath. The
+// managed copy in Schive's storage is left untouched.
+func (s *FileService) ExportFile(fileID string, destinationPath string) (string, error) {
+	cleanDest := strings.TrimSpace(destinationPath)
+	if cleanDest == "" {
+		return "", errors.New("destination path is required")
+	}
+
+	file, err := s.GetFile(fileID)
+	if err != nil {
+		return "", err
+	}
+	if file.Path == "" {
+		return "", errors.New("file path not found")
+	}
+
+	data, err := os.ReadFile(file.Path)
+	if err != nil {
+		return "", errors.New("failed to read file: " + err.Error())
+	}
+
+	destination := filepath.Clean(cleanDest)
+	if info, statErr := os.Stat(destination); statErr == nil && info.IsDir() {
+		destination = filepath.Join(destination, file.Name)
+	}
+	if dir := filepath.Dir(destination); dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return "", errors.New("failed to create destination folder: " + err.Error())
+		}
+	}
+	if err := os.WriteFile(destination, data, 0644); err != nil {
+		return "", errors.New("failed to export file: " + err.Error())
+	}
+
+	return destination, nil
 }
 
 func (s *FileService) OpenFile(id string) error {

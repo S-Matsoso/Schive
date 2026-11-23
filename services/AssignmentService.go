@@ -88,13 +88,13 @@ func (s *AssignmentService) CreateAssignment(moduleID string, title string, desc
 func (s *AssignmentService) GetAssignmentsByModule(moduleID string) ([]models.Assignment, error) {
 	cleanModuleID := strings.TrimSpace(moduleID)
 	var assignments []models.Assignment
-	err := s.DB.Preload("Module").Where("module_id = ?", cleanModuleID).Order("due_date asc, created_at desc").Find(&assignments).Error
+	err := s.DB.Preload("Module").Preload("Files").Where("module_id = ?", cleanModuleID).Order("due_date asc, created_at desc").Find(&assignments).Error
 	return assignments, err
 }
 
 func (s *AssignmentService) GetAllAssignments() ([]models.Assignment, error) {
 	var assignments []models.Assignment
-	err := s.DB.Preload("Module").Order("due_date asc, created_at desc").Find(&assignments).Error
+	err := s.DB.Preload("Module").Preload("Files").Order("due_date asc, created_at desc").Find(&assignments).Error
 	return assignments, err
 }
 

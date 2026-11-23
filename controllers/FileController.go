@@ -1,13 +1,65 @@
 package controllers
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"proj1/models"
 	"proj1/services"
+	"strings"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type FileController struct {
 	Service *services.FileService
+	ctx     context.Context
+}
+
+// SetContext stores the Wails runtime context so native dialogs can be shown.
+func (c *FileController) SetContext(ctx context.Context) {
+	c.ctx = ctx
+}
+
+// ExportFile asks the user where to save a copy of a Schive-owned file and
+// writes it there. Returns an empty string when the dialog is cancelled.
+func (c *FileController) ExportFile(fileID string) (string, error) {
+	file, err := c.Service.GetFile(fileID)
+	if err != nil {
+		fmt.Printf("Failed to export file: %v\n", err)
+		return "", err
+	}
+	if c.ctx == nil {
+		return "", errors.New("file dialog is not available")
+	}
+
+	filterPattern := "*"
+	if ext := strings.TrimSpace(file.FileType); ext != "" {
+		filterPattern = "*." + ext
+	}
+
+	destination, err := wailsRuntime.SaveFileDialog(c.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Export " + file.Name,
+		DefaultFilename: file.Name,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "Schive file (" + filterPattern + ")", Pattern: filterPattern},
+			{DisplayName: "All files", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		fmt.Printf("Failed to open save dialog: %v\n", err)
+		return "", err
+	}
+	if destination == "" {
+		return "", nil
+	}
+
+	exportedPath, err := c.Service.ExportFile(fileID, destination)
+	if err != nil {
+		fmt.Printf("Failed to export file: %v\n", err)
+		return "", err
+	}
+	return exportedPath, nil
 }
 
 func NewFileController(service *services.FileService) *FileController {
@@ -72,6 +124,24 @@ func (c *FileController) UploadFile(moduleID string, folderID string, name strin
 	file, err := c.Service.UploadFile(moduleID, folderID, name, base64Data)
 	if err != nil {
 		fmt.Printf("Failed to upload file: %v\n", err)
+		return nil, err
+	}
+	return file, nil
+}
+
+func (c *FileController) UploadAssignmentInstructions(moduleID string, assignmentID string, name string, base64Data string) (*models.File, error) {
+	file, err := c.Service.UploadAssignmentInstructions(moduleID, assignmentID, name, base64Data)
+	if err != nil {
+		fmt.Printf("Failed to upload assignment instructions: %v\n", err)
+		return nil, err
+	}
+	return file, nil
+}
+
+func (c *FileController) CreateAssignmentFile(moduleID string, assignmentID string, name string) (*models.File, error) {
+	file, err := c.Service.CreateAssignmentFile(moduleID, assignmentID, name)
+	if err != nil {
+		fmt.Printf("Failed to create assignment file: %v\n", err)
 		return nil, err
 	}
 	return file, nil

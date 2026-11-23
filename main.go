@@ -40,6 +40,7 @@ func main() {
 			app.FileController,
 			app.TimetableController,
 			app.AssignmentController,
+			app.TaskController,
 			app.FlashcardController,
 			app.BackupController,
 		},

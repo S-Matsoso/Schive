@@ -70,11 +70,17 @@ func (s *ModuleService) CreateModule(newModule *models.Module) (*models.Module, 
 		}
 	}
 
+	folderID := newModule.FolderID
+	if folderID != nil && strings.TrimSpace(*folderID) == "" {
+		folderID = nil
+	}
+
 	module := models.Module{
-		ID:    uuid.NewString(),
-		Code:  code,
-		Name:  name,
-		Color: color,
+		ID:       uuid.NewString(),
+		Code:     code,
+		Name:     name,
+		Color:    color,
+		FolderID: folderID,
 	}
 
 	res := s.DB.Create(&module)
@@ -124,6 +130,11 @@ func (s *ModuleService) UpdateModule(code string, updated *models.Module) (*mode
 		module.Color = newColor
 	}
 
+	if updated.FolderID != nil && strings.TrimSpace(*updated.FolderID) == "" {
+		updated.FolderID = nil
+	}
+	module.FolderID = updated.FolderID
+
 	if err := s.DB.Save(&module).Error; err != nil {
 		return nil, err
 	}
@@ -152,4 +163,56 @@ func (s *ModuleService) DeleteModule(code string) error {
 	_ = s.DB.Where("module_id = ?", module.ID).Delete(&models.Flashcard{}).Error
 
 	return s.DB.Delete(&module).Error
+}
+
+// --- Module folders ---
+
+func (s *ModuleService) GetAllModuleFolders() ([]models.ModuleFolder, error) {
+	var folders []models.ModuleFolder
+	err := s.DB.Order("created_at asc").Find(&folders).Error
+	return folders, err
+}
+
+func (s *ModuleService) CreateModuleFolder(name string) (*models.ModuleFolder, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, errors.New("folder name is required")
+	}
+
+	folder := models.ModuleFolder{
+		ID:   uuid.NewString(),
+		Name: trimmed,
+	}
+	if err := s.DB.Create(&folder).Error; err != nil {
+		return nil, err
+	}
+	return &folder, nil
+}
+
+func (s *ModuleService) UpdateModuleFolder(id string, name string) (*models.ModuleFolder, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, errors.New("folder name is required")
+	}
+
+	var folder models.ModuleFolder
+	if err := s.DB.First(&folder, "id = ?", id).Error; err != nil {
+		return nil, errors.New("folder not found")
+	}
+	folder.Name = trimmed
+	if err := s.DB.Save(&folder).Error; err != nil {
+		return nil, err
+	}
+	return &folder, nil
+}
+
+// DeleteModuleFolder removes the folder and leaves its modules ungrouped.
+func (s *ModuleService) DeleteModuleFolder(id string) error {
+	if strings.TrimSpace(id) == "" {
+		return errors.New("folder id is required")
+	}
+	if err := s.DB.Model(&models.Module{}).Where("folder_id = ?", id).Update("folder_id", nil).Error; err != nil {
+		return err
+	}
+	return s.DB.Delete(&models.ModuleFolder{}, "id = ?", id).Error
 }

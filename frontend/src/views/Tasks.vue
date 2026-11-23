@@ -4,9 +4,9 @@
     <v-card class="pa-6 rounded-lg mb-6 tasks-hero" elevation="2">
       <div class="d-flex justify-space-between align-center flex-wrap ga-4">
         <div>
-          <h1 class="text-h4 font-weight-bold mb-1">Tasks</h1>
+          <h1 class="text-h4 font-weight-bold mb-1">Assignments</h1>
           <p class="text-body-2 text-grey-darken-1">
-            Every assignment across your modules, with live progress tracking.
+            Every assignment across your modules, with live progress tracking. Module to-dos live in each module's Tasks tab.
           </p>
         </div>
 
@@ -28,7 +28,7 @@
             class="text-none font-weight-medium rounded-lg"
             @click="openCreateDialog"
           >
-            New Task
+            New Assignment
           </v-btn>
         </div>
       </div>
@@ -40,7 +40,7 @@
         <v-card class="pa-4 rounded-lg stat-card" elevation="1">
           <div class="d-flex align-center justify-space-between">
             <div>
-              <div class="text-caption text-grey">All Tasks</div>
+              <div class="text-caption text-grey">All Assignments</div>
               <div class="text-h4 font-weight-bold">{{ assignments.length }}</div>
             </div>
             <v-icon icon="mdi-clipboard-text-outline" size="36" color="color-bg-2"></v-icon>
@@ -114,7 +114,7 @@
           <v-text-field
             v-model="searchQuery"
             prepend-inner-icon="mdi-magnify"
-            placeholder="Search tasks..."
+            placeholder="Search assignments..."
             density="compact"
             variant="outlined"
             rounded="lg"
@@ -129,17 +129,17 @@
     <!-- Loading -->
     <div v-if="isLoading" class="py-12 text-center">
       <v-progress-circular indeterminate color="color-bg-2"></v-progress-circular>
-      <p class="mt-3 text-caption text-grey">Loading tasks...</p>
+      <p class="mt-3 text-caption text-grey">Loading assignments...</p>
     </div>
 
     <!-- Empty -->
     <v-card v-else-if="filteredAssignments.length === 0" class="pa-12 text-center rounded-lg" variant="tonal">
       <v-icon icon="mdi-clipboard-check-outline" size="56" color="grey" class="mb-3"></v-icon>
       <h3 class="text-h6 font-weight-medium mb-1">
-        {{ assignments.length === 0 ? 'No tasks yet' : 'No tasks match these filters' }}
+        {{ assignments.length === 0 ? 'No assignments yet' : 'No assignments match these filters' }}
       </h3>
       <p class="text-body-2 text-grey mb-4">
-        {{ assignments.length === 0 ? 'Create a task to start tracking your coursework progress.' : 'Try a different status, module, or search term.' }}
+        {{ assignments.length === 0 ? 'Create an assignment to start tracking your coursework progress.' : 'Try a different status, module, or search term.' }}
       </p>
       <v-btn
         v-if="assignments.length === 0"
@@ -149,7 +149,7 @@
         class="text-none rounded-lg"
         @click="openCreateDialog"
       >
-        Create Task
+        Create Assignment
       </v-btn>
     </v-card>
 
@@ -206,6 +206,16 @@
           <div class="d-flex align-center ga-2">
             <v-btn
               size="small"
+              variant="flat"
+              color="color-bg-2"
+              prepend-icon="mdi-open-in-new"
+              class="text-none"
+              @click="openAssignmentDetails(assign)"
+            >
+              Open
+            </v-btn>
+            <v-btn
+              size="small"
               variant="tonal"
               color="color-bg-2"
               prepend-icon="mdi-progress-pencil"
@@ -240,7 +250,7 @@
               icon="mdi-pencil-outline"
               size="small"
               variant="text"
-              title="Edit task"
+              title="Edit assignment"
               @click="openEditDialog(assign)"
             ></v-btn>
             <v-btn
@@ -248,7 +258,7 @@
               size="small"
               variant="text"
               color="error"
-              title="Delete task"
+              title="Delete assignment"
               @click="confirmDelete(assign)"
             ></v-btn>
           </div>
@@ -307,7 +317,7 @@
         </div>
 
         <v-alert density="compact" variant="tonal" color="info" class="text-caption mb-4">
-          Progress above 0% marks the task as in progress, and 100% marks it completed.
+          Progress above 0% marks the assignment as in progress, and 100% marks it completed.
         </v-alert>
 
         <div class="d-flex justify-end ga-2">
@@ -322,7 +332,7 @@
     <!-- Create / Edit Task Dialog -->
     <v-dialog v-model="taskDialog" width="500">
       <v-card class="pa-6 rounded-lg" elevation="4">
-        <h3 class="text-h6 font-weight-medium mb-3">{{ editingTask ? 'Edit Task' : 'New Task' }}</h3>
+        <h3 class="text-h6 font-weight-medium mb-3">{{ editingTask ? 'Edit Assignment' : 'New Assignment' }}</h3>
         <v-form @submit.prevent="saveTask">
           <v-select
             v-model="taskForm.moduleId"
@@ -386,14 +396,35 @@
           <div class="d-flex justify-end ga-2">
             <v-btn variant="text" @click="taskDialog = false">Cancel</v-btn>
             <v-btn type="submit" color="color-bg-2" variant="flat" :loading="isSavingTask">
-              {{ editingTask ? 'Save Changes' : 'Create Task' }}
+              {{ editingTask ? 'Save Changes' : 'Create Assignment' }}
             </v-btn>
           </div>
         </v-form>
       </v-card>
     </v-dialog>
 
+    <!-- Assignment details / new file -->
+    <AssignmentDetailsDialog
+      v-model="assignmentDetailDialog"
+      :assignment="detailAssignment"
+      @edit="openEditDialog"
+      @files-changed="handleAssignmentFilesChanged"
+    />
+
+    <!-- Delete confirmation -->
+    <ConfirmDialog
+      v-model="confirmDialog"
+      title="Delete assignment?"
+      :message="confirmMessage"
+      confirm-text="Delete assignment"
+      tone="error"
+      icon="mdi-clipboard-remove-outline"
+      :loading="confirmLoading"
+      @confirm="runConfirmedDelete"
+    />
+
     <v-snackbar v-model="showAlert" :color="alertType" timeout="3000">
+
       {{ alertMsg }}
     </v-snackbar>
   </div>
@@ -402,6 +433,8 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue'
 import { models } from '../../wailsjs/go/models'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import AssignmentDetailsDialog from '../components/AssignmentDetailsDialog.vue'
 import { GetAllModules } from '../../wailsjs/go/controllers/ModuleController'
 import {
   CreateAssignment,
@@ -423,6 +456,16 @@ const searchQuery = ref('')
 const alertMsg = ref('')
 const alertType = ref('success')
 const showAlert = ref(false)
+
+// Assignment details
+const assignmentDetailDialog = ref(false)
+const detailAssignment = ref<models.Assignment | null>(null)
+
+// Delete confirmation
+const confirmDialog = ref(false)
+const confirmMessage = ref('')
+const confirmLoading = ref(false)
+const assignmentToDelete = ref<models.Assignment | null>(null)
 
 const statusOptions = [
   { title: 'Pending', value: 'pending' },
@@ -490,7 +533,7 @@ async function fetchData() {
     assignments.value = assigns || []
     modules.value = mods || []
   } catch (err: any) {
-    showMessage('Failed to load tasks: ' + err, 'error')
+    showMessage('Failed to load assignments: ' + err, 'error')
   } finally {
     isLoading.value = false
   }
@@ -515,7 +558,21 @@ function openCreateDialog() {
   taskDialog.value = true
 }
 
+function openAssignmentDetails(assign: models.Assignment) {
+  detailAssignment.value = assign
+  assignmentDetailDialog.value = true
+}
+
+async function handleAssignmentFilesChanged() {
+  const id = detailAssignment.value?.id
+  await fetchData()
+  if (id) {
+    detailAssignment.value = assignments.value.find(a => a.id === id) || detailAssignment.value
+  }
+}
+
 function openEditDialog(assign: models.Assignment) {
+  assignmentDetailDialog.value = false
   editingTask.value = assign
   let formattedDate = ''
   if (assign.dueDate) {
@@ -551,7 +608,7 @@ async function saveTask() {
         taskForm.value.priority,
         taskForm.value.dueDate
       )
-      showMessage('Task updated!', 'success')
+      showMessage('Assignment updated!', 'success')
     } else {
       const moduleTasks = assignments.value.filter(a => a.moduleId === taskForm.value.moduleId)
       await CreateAssignment(
@@ -563,12 +620,12 @@ async function saveTask() {
         taskForm.value.priority,
         taskForm.value.dueDate
       )
-      showMessage('Task created!', 'success')
+      showMessage('Assignment created!', 'success')
     }
     taskDialog.value = false
     await fetchData()
   } catch (err: any) {
-    showMessage('Failed to save task: ' + err, 'error')
+    showMessage('Failed to save assignment: ' + err, 'error')
   } finally {
     isSavingTask.value = false
   }
@@ -604,14 +661,26 @@ async function setStatus(id: string, status: string) {
   }
 }
 
-async function confirmDelete(assign: models.Assignment) {
-  if (!confirm(`Delete task "${assign.title}"?`)) return
+function confirmDelete(assign: models.Assignment) {
+  assignmentToDelete.value = assign
+  confirmMessage.value = `"${assign.title}" will be permanently removed, including its uploaded instructions.`
+  confirmDialog.value = true
+}
+
+async function runConfirmedDelete() {
+  if (!assignmentToDelete.value) return
+  confirmLoading.value = true
   try {
-    await DeleteAssignment(assign.id)
-    showMessage('Task deleted', 'success')
+    await DeleteAssignment(assignmentToDelete.value.id)
+    confirmDialog.value = false
+    assignmentToDelete.value = null
+    showMessage('Assignment deleted', 'success')
     await fetchData()
   } catch (err: any) {
-    showMessage('Failed to delete task: ' + err, 'error')
+    confirmDialog.value = false
+    showMessage('Failed to delete assignment: ' + err, 'error')
+  } finally {
+    confirmLoading.value = false
   }
 }
 

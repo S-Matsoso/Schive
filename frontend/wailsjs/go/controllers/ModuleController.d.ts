@@ -4,10 +4,18 @@ import {models} from '../models';
 
 export function CreateModule(arg1:models.Module):Promise<models.Module>;
 
+export function CreateModuleFolder(arg1:string):Promise<models.ModuleFolder>;
+
 export function DeleteModule(arg1:string):Promise<string>;
+
+export function DeleteModuleFolder(arg1:string):Promise<void>;
+
+export function GetAllModuleFolders():Promise<Array<models.ModuleFolder>>;
 
 export function GetAllModules():Promise<Array<models.Module>>;
 
 export function GetModule(arg1:string):Promise<models.Module>;
 
 export function UpdateModule(arg1:string,arg2:models.Module):Promise<models.Module>;
+
+export function UpdateModuleFolder(arg1:string,arg2:string):Promise<models.ModuleFolder>;

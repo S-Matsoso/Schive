@@ -58,3 +58,38 @@ func (c *ModuleController) DeleteModule(code string) (string, error) {
 	}
 	return fmt.Sprintf("Successfully delete module %v", code), nil
 }
+
+func (c *ModuleController) GetAllModuleFolders() ([]models.ModuleFolder, error) {
+	folders, err := c.Service.GetAllModuleFolders()
+	if err != nil {
+		fmt.Println("Failed to fetch module folders:", err)
+		return nil, err
+	}
+	return folders, nil
+}
+
+func (c *ModuleController) CreateModuleFolder(name string) (*models.ModuleFolder, error) {
+	folder, err := c.Service.CreateModuleFolder(name)
+	if err != nil {
+		fmt.Println("Failed to create a module folder:", err)
+		return nil, err
+	}
+	return folder, nil
+}
+
+func (c *ModuleController) UpdateModuleFolder(id string, name string) (*models.ModuleFolder, error) {
+	folder, err := c.Service.UpdateModuleFolder(id, name)
+	if err != nil {
+		fmt.Println("Failed to update a module folder:", err)
+		return nil, err
+	}
+	return folder, nil
+}
+
+func (c *ModuleController) DeleteModuleFolder(id string) error {
+	if err := c.Service.DeleteModuleFolder(id); err != nil {
+		fmt.Println("Failed to delete a module folder:", err)
+		return err
+	}
+	return nil
+}

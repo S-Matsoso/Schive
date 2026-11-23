@@ -44,6 +44,55 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class Task {
+	    id: string;
+	    moduleId: string;
+	    title: string;
+	    notes: string;
+	    // Go type: time
+	    dueDate?: any;
+	    done: boolean;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	    module?: Module;
+	
+	    static createFrom(source: any = {}) {
+	        return new Task(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.moduleId = source["moduleId"];
+	        this.title = source["title"];
+	        this.notes = source["notes"];
+	        this.dueDate = this.convertValues(source["dueDate"], null);
+	        this.done = source["done"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.module = this.convertValues(source["module"], Module);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ClassSlot {
 	    id: string;
 	    moduleId: string;
@@ -181,15 +230,55 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class ModuleFolder {
+	    id: string;
+	    name: string;
+	    // Go type: time
+	    createdAt: any;
+	    modules?: Module[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ModuleFolder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.modules = this.convertValues(source["modules"], Module);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Module {
 	    id: string;
 	    code: string;
 	    name: string;
 	    color: string;
+	    folderId?: string;
+	    folder?: ModuleFolder;
 	    files?: File[];
 	    folders?: Folder[];
 	    classSlots?: ClassSlot[];
 	    assignments?: Assignment[];
+	    tasks?: Task[];
 	    flashcards?: Flashcard[];
 	
 	    static createFrom(source: any = {}) {
@@ -202,10 +291,13 @@ export namespace models {
 	        this.code = source["code"];
 	        this.name = source["name"];
 	        this.color = source["color"];
+	        this.folderId = source["folderId"];
+	        this.folder = this.convertValues(source["folder"], ModuleFolder);
 	        this.files = this.convertValues(source["files"], File);
 	        this.folders = this.convertValues(source["folders"], Folder);
 	        this.classSlots = this.convertValues(source["classSlots"], ClassSlot);
 	        this.assignments = this.convertValues(source["assignments"], Assignment);
+	        this.tasks = this.convertValues(source["tasks"], Task);
 	        this.flashcards = this.convertValues(source["flashcards"], Flashcard);
 	    }
 	
@@ -284,6 +376,8 @@ export namespace models {
 		    return a;
 		}
 	}
+	
+	
 	
 	
 	
