@@ -103,18 +103,24 @@
               <v-icon icon="mdi-clock-outline" color="color-bg-2"></v-icon>
               <h2 class="text-h6 font-weight-bold">Today's Schedule ({{ currentDayName }})</h2>
             </div>
-            <v-chip size="small" variant="tonal" color="color-bg-2">
-              {{ todayClasses.length }} {{ todayClasses.length === 1 ? 'class' : 'classes' }}
-            </v-chip>
+            <div class="d-flex ga-2">
+              <v-chip v-if="todayClasses.length" size="small" variant="tonal" color="color-bg-2">
+                {{ todayClasses.length }} {{ todayClasses.length === 1 ? 'class' : 'classes' }}
+              </v-chip>
+              <v-chip v-if="todayAssignments.length" size="small" variant="tonal" color="warning">
+                {{ todayAssignments.length }} due today
+              </v-chip>
+            </div>
           </div>
 
-          <div v-if="todayClasses.length === 0" class="py-8 text-center text-grey">
+          <div v-if="todayClasses.length === 0 && todayAssignments.length === 0" class="py-8 text-center text-grey">
             <v-icon icon="mdi-calendar-check-outline" size="44" class="mb-2 text-grey-lighten-1"></v-icon>
-            <div class="font-weight-medium">No classes scheduled for today!</div>
+            <div class="font-weight-medium">No classes or deadlines for today!</div>
             <div class="text-caption">Take time to catch up on revision or assignments.</div>
           </div>
 
           <div v-else class="d-flex flex-column ga-3">
+            <!-- Class slots -->
             <v-card
               v-for="slot in todayClasses"
               :key="slot.id"
@@ -135,6 +141,41 @@
               <v-chip size="small" variant="tonal" :color="slot.module?.color || 'primary'">
                 {{ slot.lengthHrs }}h
               </v-chip>
+            </v-card>
+
+            <!-- Assignments due today -->
+            <v-card
+              v-for="assign in todayAssignments"
+              :key="'due-' + assign.id"
+              class="pa-3 rounded-lg border d-flex align-center justify-space-between flex-wrap ga-2"
+              variant="flat"
+            >
+              <div class="d-flex align-center ga-3">
+                <span class="slot-color-bar" style="background-color: #D32F2F;"></span>
+                <div>
+                  <div class="d-flex align-center ga-2">
+                    <v-icon icon="mdi-clipboard-alert-outline" size="18" color="error"></v-icon>
+                    <span class="font-weight-bold">{{ assign.title }}</span>
+                    <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
+                      {{ assign.priority }}
+                    </v-chip>
+                  </div>
+                  <div class="text-caption text-grey mt-1">
+                    <span class="font-weight-medium text-error me-2">Due Today</span>
+                    <span class="text-grey-darken-2">{{ assign.module?.code }}</span>
+                  </div>
+                </div>
+              </div>
+              <v-btn
+                size="small"
+                variant="text"
+                color="success"
+                prepend-icon="mdi-check"
+                class="text-none"
+                @click="markAssignmentComplete(assign.id)"
+              >
+                Mark Done
+              </v-btn>
             </v-card>
           </div>
         </v-card>
@@ -319,6 +360,18 @@ const today = new Date()
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const currentDayName = computed(() => dayNames[today.getDay()])
 
+// Map full day names to the abbreviations stored in ClassSlot.day
+const dayAbbreviations: Record<string, string> = {
+  'sunday': 'sun',
+  'monday': 'mon',
+  'tuesday': 'tue',
+  'wednesday': 'wed',
+  'thursday': 'thu',
+  'friday': 'fri',
+  'saturday': 'sat',
+}
+const currentDayAbbrev = computed(() => dayAbbreviations[currentDayName.value.toLowerCase()] || '')
+
 const formattedToday = computed(() => {
   return today.toLocaleDateString(undefined, {
     weekday: 'long',
@@ -337,13 +390,13 @@ const greeting = computed(() => {
 
 // Today's classes from all modules
 const todayClasses = computed(() => {
-  const currentDay = currentDayName.value.toLowerCase()
+  const abbrev = currentDayAbbrev.value
   const list: any[] = []
 
   for (const mod of modules.value) {
     if (mod.classSlots && mod.classSlots.length > 0) {
       for (const slot of mod.classSlots) {
-        if (slot.day && slot.day.toLowerCase() === currentDay) {
+        if (slot.day && slot.day.toLowerCase() === abbrev) {
           list.push({
             ...slot,
             module: mod
@@ -355,6 +408,18 @@ const todayClasses = computed(() => {
 
   // Sort by start hour
   return list.sort((a, b) => a.startHour - b.startHour)
+})
+
+// Assignments due today
+const todayAssignments = computed(() => {
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  return allAssignments.value.filter(a => {
+    if (!a.dueDate || a.status === 'completed') return false
+    const d = new Date(a.dueDate)
+    if (isNaN(d.getTime())) return false
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return dateStr === todayStr
+  })
 })
 
 // Pending assignments
