@@ -162,44 +162,59 @@
         elevation="1"
       >
         <div class="d-flex justify-space-between align-start flex-wrap ga-3">
-          <div class="task-main">
-            <div class="d-flex align-center ga-2 flex-wrap mb-1">
-              <span
-                class="module-dot"
-                :style="{ backgroundColor: assign.module?.color || '#7A8B69' }"
-              ></span>
-              <span class="text-caption font-weight-bold" :style="{ color: assign.module?.color || '#7A8B69' }">
-                {{ assign.module?.code || 'Module' }}
-              </span>
-              <span class="font-weight-bold text-subtitle-1">{{ assign.title }}</span>
-              <v-chip v-if="assign.assignmentNumber" size="x-small" variant="tonal" color="grey">
-                #{{ assign.assignmentNumber }}
-              </v-chip>
-              <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
-                {{ assign.priority }}
-              </v-chip>
-              <v-chip size="x-small" :color="getStatusColor(assign.status)" variant="tonal" class="text-uppercase font-weight-medium">
-                {{ formatStatus(assign.status) }}
-              </v-chip>
-              <v-chip v-if="isOverdue(assign)" size="x-small" color="error" variant="flat" class="font-weight-bold">
-                Overdue
-              </v-chip>
-            </div>
+          <div class="d-flex align-start ga-3 flex-grow-1 task-main">
+            <v-btn
+              :icon="assign.status === 'completed' ? 'mdi-checkbox-marked-circle' : 'mdi-checkbox-blank-circle-outline'"
+              :color="assign.status === 'completed' ? 'success' : 'grey'"
+              variant="text"
+              density="compact"
+              size="small"
+              class="mt-1"
+              :title="assign.status === 'completed' ? 'Mark Incomplete' : 'Mark Complete'"
+              @click.stop="setStatus(assign.id, assign.status === 'completed' ? 'pending' : 'completed')"
+            ></v-btn>
+            <div class="flex-grow-1">
+              <div class="d-flex align-center ga-2 flex-wrap mb-1">
+                <span
+                  class="module-dot"
+                  :style="{ backgroundColor: assign.module?.color || '#7A8B69' }"
+                ></span>
+                <span class="text-caption font-weight-bold" :style="{ color: assign.module?.color || '#7A8B69' }">
+                  {{ assign.module?.code || 'Module' }}
+                </span>
+                <span
+                  class="font-weight-bold text-subtitle-1"
+                  :class="{ 'text-decoration-line-through text-grey': assign.status === 'completed' }"
+                >{{ assign.title }}</span>
+                <v-chip v-if="assign.assignmentNumber" size="x-small" variant="tonal" color="grey">
+                  #{{ assign.assignmentNumber }}
+                </v-chip>
+                <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
+                  {{ assign.priority }}
+                </v-chip>
+                <v-chip size="x-small" :color="getStatusColor(assign.status)" variant="tonal" class="text-uppercase font-weight-medium">
+                  {{ formatStatus(assign.status) }}
+                </v-chip>
+                <v-chip v-if="isOverdue(assign)" size="x-small" color="error" variant="flat" class="font-weight-bold">
+                  Overdue
+                </v-chip>
+              </div>
 
-            <p v-if="assign.description" class="text-body-2 text-grey-darken-1 mt-1 mb-0">
-              {{ assign.description }}
-            </p>
+              <p v-if="assign.description" class="text-body-2 text-grey-darken-1 mt-1 mb-0">
+                {{ assign.description }}
+              </p>
 
-            <div class="text-caption text-grey mt-2 d-flex align-center flex-wrap ga-3">
-              <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign) ? 'text-error' : 'text-primary'">
-                <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
-                Due: {{ formatDueDate(assign.dueDate) }}
-              </span>
-              <span v-else class="d-flex align-center ga-1">
-                <v-icon icon="mdi-calendar-remove-outline" size="14"></v-icon>
-                No due date
-              </span>
-              <span>Updated {{ formatDate(assign.updatedAt) }}</span>
+              <div class="text-caption text-grey mt-2 d-flex align-center flex-wrap ga-3">
+                <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign) ? 'text-error' : 'text-primary'">
+                  <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
+                  Due: {{ formatDueDate(assign.dueDate) }}
+                </span>
+                <span v-else class="d-flex align-center ga-1">
+                  <v-icon icon="mdi-calendar-remove-outline" size="14"></v-icon>
+                  No due date
+                </span>
+                <span>Updated {{ formatDate(assign.updatedAt) }}</span>
+              </div>
             </div>
           </div>
 
@@ -229,11 +244,11 @@
               size="small"
               variant="tonal"
               color="success"
-              prepend-icon="mdi-check"
+              prepend-icon="mdi-check-circle-outline"
               class="text-none"
               @click="setStatus(assign.id, 'completed')"
             >
-              Done
+              Mark Complete
             </v-btn>
             <v-btn
               v-else
@@ -244,7 +259,7 @@
               class="text-none"
               @click="setStatus(assign.id, 'pending')"
             >
-              Reopen
+              Mark Incomplete
             </v-btn>
             <v-btn
               icon="mdi-pencil-outline"
@@ -409,6 +424,7 @@
       :assignment="detailAssignment"
       @edit="openEditDialog"
       @files-changed="handleAssignmentFilesChanged"
+      @status-changed="fetchData"
     />
 
     <!-- Delete confirmation -->
@@ -431,7 +447,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { models } from '../../wailsjs/go/models'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import AssignmentDetailsDialog from '../components/AssignmentDetailsDialog.vue'
@@ -444,6 +460,7 @@ import {
   UpdateAssignmentStatus,
   DeleteAssignment
 } from '../../wailsjs/go/controllers/AssignmentController'
+import { eventBus, SYNC_EVENTS } from '../utils/eventBus'
 
 const assignments = ref<models.Assignment[]>([])
 const modules = ref<models.Module[]>([])
@@ -656,6 +673,7 @@ async function setStatus(id: string, status: string) {
   try {
     await UpdateAssignmentStatus(id, status)
     await fetchData()
+    eventBus.emit(SYNC_EVENTS.ASSIGNMENTS_CHANGED, { id, status })
   } catch (err: any) {
     showMessage('Failed to update status: ' + err, 'error')
   }
@@ -735,7 +753,18 @@ function getProgressColor(progress?: number): string {
   return 'grey'
 }
 
-onMounted(fetchData)
+let unsubAssignments: (() => void) | null = null
+
+onMounted(() => {
+  fetchData()
+  unsubAssignments = eventBus.on(SYNC_EVENTS.ASSIGNMENTS_CHANGED, () => {
+    fetchData()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubAssignments) unsubAssignments()
+})
 </script>
 
 <style scoped>

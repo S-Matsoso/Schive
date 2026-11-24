@@ -106,6 +106,28 @@
           Edit details
         </v-btn>
         <v-spacer></v-spacer>
+        <v-btn
+          v-if="assignment.status !== 'completed'"
+          color="success"
+          variant="flat"
+          prepend-icon="mdi-check-circle"
+          class="text-none font-weight-medium me-2"
+          :loading="isUpdatingStatus"
+          @click="toggleComplete"
+        >
+          Mark Complete
+        </v-btn>
+        <v-btn
+          v-else
+          color="grey"
+          variant="tonal"
+          prepend-icon="mdi-undo"
+          class="text-none me-2"
+          :loading="isUpdatingStatus"
+          @click="toggleComplete"
+        >
+          Mark Incomplete
+        </v-btn>
         <v-btn variant="text" class="text-none" @click="emit('update:modelValue', false)">Close</v-btn>
       </v-card-actions>
     </v-card>
@@ -160,7 +182,9 @@
 import { ref } from 'vue'
 import { models } from '../../wailsjs/go/models'
 import { CreateAssignmentFile, OpenFile } from '../../wailsjs/go/controllers/FileController'
+import { UpdateAssignmentStatus } from '../../wailsjs/go/controllers/AssignmentController'
 import { exportSchiveFile } from '../utils/exportFile'
+import { eventBus, SYNC_EVENTS } from '../utils/eventBus'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -174,8 +198,10 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'edit', assignment: models.Assignment): void
   (e: 'files-changed'): void
+  (e: 'status-changed', status: string): void
 }>()
 
+const isUpdatingStatus = ref(false)
 const fileDialog = ref(false)
 const fileType = ref('docx')
 const fileName = ref('')
@@ -254,6 +280,25 @@ async function exportFile(file: models.File) {
     showMessage(`${file.name} exported to ${destination}`, 'success')
   } catch (err: any) {
     showMessage(`Could not export ${file.name}: ${err}`, 'error')
+  }
+}
+
+async function toggleComplete() {
+  if (!props.assignment) return
+  const newStatus = props.assignment.status === 'completed' ? 'pending' : 'completed'
+  try {
+    isUpdatingStatus.value = true
+    await UpdateAssignmentStatus(props.assignment.id, newStatus)
+    props.assignment.status = newStatus
+    props.assignment.progress = newStatus === 'completed' ? 100 : 0
+    showMessage(newStatus === 'completed' ? 'Assignment marked as complete!' : 'Assignment marked as incomplete', 'success')
+    emit('files-changed')
+    emit('status-changed', newStatus)
+    eventBus.emit(SYNC_EVENTS.ASSIGNMENTS_CHANGED, { id: props.assignment.id, status: newStatus })
+  } catch (err: any) {
+    showMessage('Failed to update status: ' + err, 'error')
+  } finally {
+    isUpdatingStatus.value = false
   }
 }
 

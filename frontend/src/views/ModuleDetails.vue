@@ -299,7 +299,7 @@
               <v-card
                 v-for="file in displayedFiles"
                 :key="file.id"
-                class="file-card pa-4 rounded-lg d-flex flex-column justify-space-between"
+                class="file-card pa-3 rounded-lg d-flex flex-column justify-space-between"
                 elevation="2"
                 @click="handleOpenFile(file.id)"
               >
@@ -352,14 +352,15 @@
                 </div>
 
                 <!-- Actions -->
-                <div class="file-card-actions d-flex justify-space-between align-center mt-3 pt-2 border-top">
-                  <div class="d-flex ga-1">
+                <div class="file-card-actions d-flex justify-space-between align-center mt-3 pt-2 border-top flex-wrap ga-1">
+                  <div class="d-flex align-center ga-1 flex-nowrap">
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       prepend-icon="mdi-open-in-new"
                       color="color-bg-2"
-                      class="text-none px-2"
+                      class="text-none px-2 font-weight-medium"
                       title="Open in default application"
                       @click.stop="handleOpenFile(file.id)"
                     >
@@ -368,6 +369,7 @@
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       icon="mdi-eye-outline"
                       color="info"
                       title="Quick Preview"
@@ -376,6 +378,7 @@
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       icon="mdi-download-outline"
                       color="grey-darken-2"
                       title="Export a copy"
@@ -383,10 +386,11 @@
                     ></v-btn>
                   </div>
 
-                  <div class="d-flex ga-1">
+                  <div class="d-flex align-center ga-1 flex-nowrap">
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       icon="mdi-pencil-outline"
                       color="grey-darken-2"
                       title="Rename file"
@@ -395,6 +399,7 @@
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       icon="mdi-folder-move-outline"
                       color="grey-darken-2"
                       title="Move to folder"
@@ -403,6 +408,7 @@
                     <v-btn
                       variant="text"
                       size="small"
+                      density="compact"
                       icon="mdi-delete-outline"
                       color="error"
                       title="Delete File"
@@ -421,11 +427,9 @@
                     <th style="width: 44px;"></th>
                     <th>Name</th>
                     <th v-if="!selectedFolderId" style="width: 140px;">Folder</th>
-                    <th style="width: 100px;">Type</th>
-                    <th style="width: 100px;">Size</th>
                     <th style="width: 140px;">Date Uploaded</th>
                     <th style="width: 190px;">Last Modified</th>
-                    <th style="width: 170px;" class="text-right">Actions</th>
+                    <th style="width: 220px; min-width: 220px;" class="text-right text-no-wrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,19 +463,6 @@
                       </v-chip>
                       <span v-else class="text-caption text-grey">—</span>
                     </td>
-                    <td>
-                      <v-chip
-                        size="x-small"
-                        variant="tonal"
-                        :color="getFileInfo(file.fileType).color"
-                        class="font-weight-bold"
-                      >
-                        {{ getFileInfo(file.fileType).label }}
-                      </v-chip>
-                    </td>
-                    <td class="text-caption text-grey-darken-1">
-                      {{ formatFileSize(file.fileSize) }}
-                    </td>
                     <td class="text-caption text-grey-darken-1">
                       {{ formatDate(file.createdAt) }}
                     </td>
@@ -487,47 +478,54 @@
                         {{ formatDate(file.updatedAt || file.createdAt) }}
                       </span>
                     </td>
-                    <td class="text-right">
-                      <v-btn
-                        icon="mdi-eye-outline"
-                        variant="text"
-                        size="small"
-                        color="info"
-                        title="Quick preview"
-                        @click.stop="openPreview(file)"
-                      ></v-btn>
-                      <v-btn
-                        icon="mdi-download-outline"
-                        variant="text"
-                        size="small"
-                        color="grey-darken-2"
-                        title="Export a copy"
-                        @click.stop="handleExportFile(file)"
-                      ></v-btn>
-                      <v-btn
-                        icon="mdi-pencil-outline"
-                        variant="text"
-                        size="small"
-                        color="grey-darken-2"
-                        title="Rename file"
-                        @click.stop="openRenameDialog(file)"
-                      ></v-btn>
-                      <v-btn
-                        icon="mdi-folder-move-outline"
-                        variant="text"
-                        size="small"
-                        color="grey-darken-2"
-                        title="Move to folder"
-                        @click.stop="openMoveDialog(file)"
-                      ></v-btn>
-                      <v-btn
-                        icon="mdi-delete-outline"
-                        variant="text"
-                        size="small"
-                        color="error"
-                        title="Delete file"
-                        @click.stop="confirmDeleteFile(file)"
-                      ></v-btn>
+                    <td class="text-right text-no-wrap" style="white-space: nowrap;">
+                      <div class="d-inline-flex align-center justify-end ga-1 flex-nowrap">
+                        <v-btn
+                          icon="mdi-eye-outline"
+                          variant="text"
+                          size="small"
+                          density="compact"
+                          color="info"
+                          title="Quick preview"
+                          @click.stop="openPreview(file)"
+                        ></v-btn>
+                        <v-btn
+                          icon="mdi-download-outline"
+                          variant="text"
+                          size="small"
+                          density="compact"
+                          color="grey-darken-2"
+                          title="Export a copy"
+                          @click.stop="handleExportFile(file)"
+                        ></v-btn>
+                        <v-btn
+                          icon="mdi-pencil-outline"
+                          variant="text"
+                          size="small"
+                          density="compact"
+                          color="grey-darken-2"
+                          title="Rename file"
+                          @click.stop="openRenameDialog(file)"
+                        ></v-btn>
+                        <v-btn
+                          icon="mdi-folder-move-outline"
+                          variant="text"
+                          size="small"
+                          density="compact"
+                          color="grey-darken-2"
+                          title="Move to folder"
+                          @click.stop="openMoveDialog(file)"
+                        ></v-btn>
+                        <v-btn
+                          icon="mdi-delete-outline"
+                          variant="text"
+                          size="small"
+                          density="compact"
+                          color="error"
+                          title="Delete file"
+                          @click.stop="confirmDeleteFile(file)"
+                        ></v-btn>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -586,58 +584,73 @@
                 class="pa-4 rounded-lg d-flex justify-space-between align-center flex-wrap ga-3"
                 elevation="1"
               >
-                <div>
-                  <div class="d-flex align-center ga-2 flex-wrap">
-                    <span class="font-weight-bold text-subtitle-1">{{ assign.title }}</span>
-                    <v-chip v-if="assign.assignmentNumber" size="x-small" variant="tonal" color="grey">
-                      #{{ assign.assignmentNumber }}
-                    </v-chip>
-                    <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
-                      {{ assign.priority }}
-                    </v-chip>
-                    <v-chip size="x-small" :color="getStatusColor(assign.status)" variant="tonal" class="text-uppercase font-weight-medium">
-                      {{ assign.status }}
-                    </v-chip>
-                  </div>
-
-                  <p v-if="assign.description" class="text-body-2 text-grey-darken-1 mt-1 mb-0">
-                    {{ assign.description }}
-                  </p>
-
-                  <div v-if="assign.files?.length" class="mt-2 d-flex flex-wrap ga-2">
-                    <v-chip
-                      v-for="f in assign.files"
-                      :key="f.id"
-                      size="small"
-                      variant="tonal"
-                      color="color-bg-2"
-                      prepend-icon="mdi-paperclip"
-                      class="cursor-pointer"
-                      @click="handleOpenFile(f.id)"
-                    >
-                      {{ f.name }}
-                    </v-chip>
-                  </div>
-
-                  <div class="text-caption text-grey mt-2 d-flex align-center ga-3">
-                    <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign.dueDate) ? 'text-error' : 'text-primary'">
-                      <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
-                      Due: {{ formatDueDateDisplay(assign.dueDate) }}
-                    </span>
-                    <span>Created {{ formatDate(assign.createdAt) }}</span>
-                  </div>
-
-                  <div class="mt-2" style="min-width: 240px; max-width: 360px;">
-                    <div class="d-flex justify-space-between text-caption mb-1">
-                      <span class="text-grey">Progress</span>
-                      <span class="font-weight-bold">{{ assign.progress || 0 }}%</span>
+                <div class="d-flex align-start ga-3 flex-grow-1">
+                  <v-btn
+                    :icon="assign.status === 'completed' ? 'mdi-checkbox-marked-circle' : 'mdi-checkbox-blank-circle-outline'"
+                    :color="assign.status === 'completed' ? 'success' : 'grey'"
+                    variant="text"
+                    density="compact"
+                    size="small"
+                    class="mt-1"
+                    :title="assign.status === 'completed' ? 'Mark Incomplete' : 'Mark Complete'"
+                    @click.stop="updateStatus(assign.id, assign.status === 'completed' ? 'pending' : 'completed')"
+                  ></v-btn>
+                  <div>
+                    <div class="d-flex align-center ga-2 flex-wrap">
+                      <span
+                        class="font-weight-bold text-subtitle-1"
+                        :class="{ 'text-decoration-line-through text-grey': assign.status === 'completed' }"
+                      >{{ assign.title }}</span>
+                      <v-chip v-if="assign.assignmentNumber" size="x-small" variant="tonal" color="grey">
+                        #{{ assign.assignmentNumber }}
+                      </v-chip>
+                      <v-chip size="x-small" :color="getPriorityColor(assign.priority)" variant="flat" class="text-uppercase font-weight-bold">
+                        {{ assign.priority }}
+                      </v-chip>
+                      <v-chip size="x-small" :color="getStatusColor(assign.status)" variant="tonal" class="text-uppercase font-weight-medium">
+                        {{ assign.status }}
+                      </v-chip>
                     </div>
-                    <v-progress-linear
-                      :model-value="assign.progress || 0"
-                      :color="getProgressColor(assign.progress)"
-                      height="6"
-                      rounded
-                    ></v-progress-linear>
+
+                    <p v-if="assign.description" class="text-body-2 text-grey-darken-1 mt-1 mb-0">
+                      {{ assign.description }}
+                    </p>
+
+                    <div v-if="assign.files?.length" class="mt-2 d-flex flex-wrap ga-2">
+                      <v-chip
+                        v-for="f in assign.files"
+                        :key="f.id"
+                        size="small"
+                        variant="tonal"
+                        color="color-bg-2"
+                        prepend-icon="mdi-paperclip"
+                        class="cursor-pointer"
+                        @click="handleOpenFile(f.id)"
+                      >
+                        {{ f.name }}
+                      </v-chip>
+                    </div>
+
+                    <div class="text-caption text-grey mt-2 d-flex align-center ga-3">
+                      <span v-if="assign.dueDate" class="d-flex align-center ga-1 font-weight-medium" :class="isOverdue(assign.dueDate) ? 'text-error' : 'text-primary'">
+                        <v-icon icon="mdi-calendar-clock" size="14"></v-icon>
+                        Due: {{ formatDueDateDisplay(assign.dueDate) }}
+                      </span>
+                      <span>Created {{ formatDate(assign.createdAt) }}</span>
+                    </div>
+
+                    <div class="mt-2" style="min-width: 240px; max-width: 360px;">
+                      <div class="d-flex justify-space-between text-caption mb-1">
+                        <span class="text-grey">Progress</span>
+                        <span class="font-weight-bold">{{ assign.progress || 0 }}%</span>
+                      </div>
+                      <v-progress-linear
+                        :model-value="assign.progress || 0"
+                        :color="getProgressColor(assign.progress)"
+                        height="6"
+                        rounded
+                      ></v-progress-linear>
+                    </div>
                   </div>
                 </div>
 
@@ -668,11 +681,11 @@
                     size="small"
                     variant="tonal"
                     color="success"
-                    prepend-icon="mdi-check"
+                    prepend-icon="mdi-check-circle-outline"
                     class="text-none"
                     @click="updateStatus(assign.id, 'completed')"
                   >
-                    Done
+                    Mark Complete
                   </v-btn>
                   <v-btn
                     v-else
@@ -683,7 +696,7 @@
                     class="text-none"
                     @click="updateStatus(assign.id, 'pending')"
                   >
-                    Reopen
+                    Mark Incomplete
                   </v-btn>
 
                   <v-btn
@@ -1039,6 +1052,7 @@
       :assignment="detailAssignment"
       @edit="openEditAssignmentDialog"
       @files-changed="handleAssignmentFilesChanged"
+      @status-changed="fetchAssignments"
     />
 
     <!-- Create / Edit Assignment Dialog -->
@@ -1303,6 +1317,7 @@ import {
   UpdateFlashcard,
   DeleteFlashcard
 } from '../../wailsjs/go/controllers/FlashcardController'
+import { eventBus, SYNC_EVENTS } from '../utils/eventBus'
 
 const route = useRoute()
 const moduleCode = computed(() => route.params.code as string)
@@ -1960,6 +1975,7 @@ async function updateStatus(id: string, status: string) {
   try {
     await UpdateAssignmentStatus(id, status)
     await fetchAssignments()
+    eventBus.emit(SYNC_EVENTS.ASSIGNMENTS_CHANGED, { id, status })
   } catch (err: any) {
     alertMsg.value = 'Failed to update status: ' + err
     alertType.value = 'error'
@@ -2035,8 +2051,10 @@ async function saveTask() {
 
 async function toggleTask(task: models.Task) {
   try {
-    await SetTaskDone(task.id, !task.done)
+    const nextDone = !task.done
+    await SetTaskDone(task.id, nextDone)
     await fetchTasks()
+    eventBus.emit(SYNC_EVENTS.TASKS_CHANGED, { id: task.id, done: nextDone })
   } catch (err: any) {
     alertMsg.value = 'Failed to update task: ' + err
     alertType.value = 'error'
@@ -2310,13 +2328,25 @@ function onWindowFocus() {
   }
 }
 
+let unsubTasks: (() => void) | null = null
+let unsubAssignments: (() => void) | null = null
+
 onMounted(() => {
   fetchModuleDetails()
   window.addEventListener('focus', onWindowFocus)
+
+  unsubTasks = eventBus.on(SYNC_EVENTS.TASKS_CHANGED, () => {
+    fetchTasks()
+  })
+  unsubAssignments = eventBus.on(SYNC_EVENTS.ASSIGNMENTS_CHANGED, () => {
+    fetchAssignments()
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('focus', onWindowFocus)
+  if (unsubTasks) unsubTasks()
+  if (unsubAssignments) unsubAssignments()
 })
 
 watch(moduleCode, (newCode, oldCode) => {
@@ -2438,7 +2468,7 @@ watch(moduleCode, (newCode, oldCode) => {
 
 .files-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -2446,6 +2476,19 @@ watch(moduleCode, (newCode, oldCode) => {
   min-height: 175px;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.file-card-actions {
+  min-height: 36px;
+}
+
+.file-card-actions .v-btn {
+  min-width: 0 !important;
+}
+
+.file-card-actions .v-btn--icon.v-btn--density-compact {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .file-card:hover {

@@ -1,5 +1,5 @@
 <template>
-  <v-navigation-drawer permanent width="230" class="custom-sidebar d-flex flex-column justify-space-between">
+  <v-navigation-drawer permanent width="230" class="custom-sidebar">
     <div>
       <!-- App Brand -->
       <div class="sidebar-header px-4 pt-4 pb-2 d-flex align-center justify-space-between">
@@ -39,6 +39,82 @@
           <v-icon icon="mdi-magnify" size="20"></v-icon>
           <span class="label">Search</span>
           <span class="search-kbd-pill ms-auto">Ctrl+K</span>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider my-2" />
+
+      <!-- Tasks Section (Collapsible - sorted by deadline then importance) -->
+      <div class="sidebar-section px-2 mb-2">
+        <div
+          class="d-flex justify-space-between align-center px-2 py-1 mb-1 cursor-pointer sidebar-section-header rounded-lg"
+          @click="toggleTasksCollapse"
+        >
+          <div class="d-flex align-center ga-1">
+            <v-icon
+              :icon="isTasksCollapsed ? 'mdi-chevron-right' : 'mdi-chevron-down'"
+              size="15"
+              color="grey"
+            ></v-icon>
+            <span class="sidebar-subtitle">TASKS</span>
+          </div>
+          <v-chip size="x-small" variant="flat" color="color-bg-3" class="font-weight-bold">
+            {{ sortedAllTasks.length }}
+          </v-chip>
+        </div>
+
+        <div v-show="!isTasksCollapsed" class="tasks-sidebar-list d-flex flex-column ga-1">
+          <div v-if="sortedAllTasks.length === 0" class="text-caption text-grey px-2 py-1 font-italic">
+            No tasks found
+          </div>
+          <div
+            v-for="task in sortedAllTasks"
+            :key="task.id"
+            class="sidebar-task-item d-flex align-center justify-space-between px-2 py-1 rounded-lg cursor-pointer"
+            :class="{ 'task-completed': task.completed }"
+            :title="`${task.title} • Priority: ${task.priority || 'medium'}${task.dueDate ? ' • Due: ' + formatDeadlineFull(task.dueDate) : ''}`"
+            @click="navigateToTask(task)"
+          >
+            <div class="d-flex align-center ga-2 overflow-hidden flex-grow-1 me-1">
+              <v-btn
+                :icon="task.completed ? 'mdi-checkbox-marked-circle' : 'mdi-checkbox-blank-circle-outline'"
+                :color="task.completed ? 'success' : 'grey'"
+                variant="text"
+                density="compact"
+                size="small"
+                class="pa-0 flex-shrink-0"
+                :title="task.completed ? 'Mark Incomplete' : 'Mark Complete'"
+                @click.stop="toggleTaskComplete(task)"
+              ></v-btn>
+              <span
+                class="task-priority-dot"
+                :style="{ backgroundColor: getPriorityColor(task.priority) }"
+              ></span>
+              <span
+                class="task-title text-truncate"
+                :class="{ 'text-decoration-line-through text-grey': task.completed }"
+              >
+                {{ task.title }}
+              </span>
+            </div>
+
+            <div class="d-flex align-center ga-1 flex-shrink-0">
+              <span
+                v-if="task.dueDate"
+                class="task-deadline-badge"
+                :class="getDeadlineClass(task.dueDate)"
+              >
+                {{ formatShortDeadline(task.dueDate) }}
+              </span>
+              <span
+                v-if="task.moduleCode"
+                class="task-module-pill"
+                :style="{ color: task.moduleColor || 'inherit' }"
+              >
+                {{ task.moduleCode }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -154,32 +230,39 @@
       </nav>
     </div>
 
-    <!-- Bottom Actions: Dark Mode & Backup -->
-    <div class="sidebar-bottom pa-3 border-top">
-      <div class="d-flex align-center justify-space-between mb-2">
-        <span class="text-caption text-grey font-weight-medium">THEME</span>
-        <v-btn
-          :icon="isDark ? 'mdi-weather-night' : 'mdi-weather-sunny'"
-          size="small"
-          variant="text"
-          :color="isDark ? 'warning' : 'color-bg-2'"
-          :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-          @click="toggleTheme"
-        ></v-btn>
-      </div>
+    <!-- Bottom Actions: Dark Mode & Backup (Pinned to the very bottom) -->
+    <template #append>
+      <div class="sidebar-bottom pa-3 border-top">
+        <div class="d-flex align-center justify-space-between mb-2">
+          <span class="text-caption text-grey font-weight-medium">THEME</span>
+          <v-btn
+            :icon="isDark ? 'mdi-weather-night' : 'mdi-weather-sunny'"
+            size="small"
+            variant="text"
+            :color="isDark ? 'warning' : 'color-bg-2'"
+            :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+            @click="toggleTheme"
+          ></v-btn>
+        </div>
 
-      <v-btn
-        variant="text"
-        block
-        size="small"
-        prepend-icon="mdi-cloud-download-outline"
-        class="text-none justify-start px-2 backup-btn"
-        :loading="isBackingUp"
-        @click="handleBackup"
-      >
-        Backup Data
-      </v-btn>
-    </div>
+        <v-btn
+          variant="text"
+          block
+          size="small"
+          prepend-icon="mdi-cloud-download-outline"
+          class="text-none justify-start px-2 backup-btn"
+          :loading="isBackingUp"
+          @click="handleBackup"
+        >
+          Backup Data
+        </v-btn>
+
+        <div v-if="lastBackupDateFormatted" class="backup-date-display mt-1 px-2 d-flex align-center ga-1 text-grey text-caption">
+          <v-icon icon="mdi-history" size="12"></v-icon>
+          <span>Last: {{ lastBackupDateFormatted }}</span>
+        </div>
+      </div>
+    </template>
   </v-navigation-drawer>
 
   <!-- Create Module Dialog -->
@@ -454,7 +537,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
 import {
@@ -467,12 +550,203 @@ import {
   UpdateModuleFolder,
   DeleteModuleFolder,
 } from '../../wailsjs/go/controllers/ModuleController'
+import { GetAllAssignments, UpdateAssignmentStatus } from '../../wailsjs/go/controllers/AssignmentController'
+import { SetTaskDone } from '../../wailsjs/go/controllers/TaskController'
 import { CreateBackup } from '../../wailsjs/go/controllers/BackupController'
 import { OpenFile } from '../../wailsjs/go/controllers/FileController'
 import { models } from '../../wailsjs/go/models'
+import { eventBus, SYNC_EVENTS } from '../utils/eventBus'
 
 const router = useRouter()
 const theme = useTheme()
+
+// Collapsible tasks in sidebar
+const allAssignments = ref<models.Assignment[]>([])
+const isTasksCollapsed = ref(localStorage.getItem('schive_sidebar_tasks_collapsed') === 'true')
+
+function toggleTasksCollapse() {
+  isTasksCollapsed.value = !isTasksCollapsed.value
+  localStorage.setItem('schive_sidebar_tasks_collapsed', String(isTasksCollapsed.value))
+}
+
+function getPriorityWeight(p?: string): number {
+  switch ((p || '').toLowerCase()) {
+    case 'high': return 3
+    case 'medium': return 2
+    case 'low': return 1
+    default: return 0
+  }
+}
+
+function compareTasks(a: any, b: any): number {
+  // 1. Incomplete before completed
+  const aDone = !!a.completed
+  const bDone = !!b.completed
+  if (aDone !== bDone) {
+    return aDone ? 1 : -1
+  }
+
+  // 2. Deadline (earliest deadline first)
+  const aTime = a.dueDate ? new Date(a.dueDate).getTime() : NaN
+  const bTime = b.dueDate ? new Date(b.dueDate).getTime() : NaN
+  const aHasDeadline = !isNaN(aTime)
+  const bHasDeadline = !isNaN(bTime)
+
+  if (aHasDeadline && bHasDeadline) {
+    if (aTime !== bTime) {
+      return aTime - bTime
+    }
+    // Same deadline -> sort by importance (priority)
+    const pDiff = getPriorityWeight(b.priority) - getPriorityWeight(a.priority)
+    if (pDiff !== 0) return pDiff
+  } else if (aHasDeadline && !bHasDeadline) {
+    return -1
+  } else if (!aHasDeadline && bHasDeadline) {
+    return 1
+  } else {
+    // Neither has a deadline -> sort by importance
+    const pDiff = getPriorityWeight(b.priority) - getPriorityWeight(a.priority)
+    if (pDiff !== 0) return pDiff
+  }
+
+  // 3. Fallback: alphabetical by title
+  return (a.title || '').localeCompare(b.title || '')
+}
+
+const sortedAllTasks = computed(() => {
+  const items: any[] = []
+
+  // From assignments
+  for (const a of allAssignments.value) {
+    items.push({
+      id: `assign-${a.id}`,
+      originalId: a.id,
+      title: a.title,
+      dueDate: a.dueDate,
+      priority: a.priority || 'medium',
+      status: a.status,
+      completed: a.status === 'completed',
+      moduleCode: a.module?.code || modules.value.find(m => m.id === a.moduleId)?.code || '',
+      moduleColor: a.module?.color || modules.value.find(m => m.id === a.moduleId)?.color || '#7A8B69',
+      isModuleTodo: false
+    })
+  }
+
+  // From module tasks (if any)
+  for (const mod of modules.value) {
+    if (mod.tasks && mod.tasks.length > 0) {
+      for (const t of mod.tasks) {
+        if (!items.some(i => i.originalId === t.id)) {
+          items.push({
+            id: `task-${t.id}`,
+            originalId: t.id,
+            title: t.title,
+            dueDate: t.dueDate,
+            priority: 'medium',
+            status: t.done ? 'completed' : 'pending',
+            completed: !!t.done,
+            moduleCode: mod.code,
+            moduleColor: mod.color || '#7A8B69',
+            isModuleTodo: true
+          })
+        }
+      }
+    }
+  }
+
+  return items.sort(compareTasks)
+})
+
+function formatShortDeadline(dateStr?: string | Date): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const now = new Date()
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diffDays = Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) return 'Overdue'
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Tmrw'
+  if (diffDays < 7) return `${diffDays}d`
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function getDeadlineClass(dateStr?: string | Date): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const now = new Date()
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diffDays = Math.round((targetDate - todayDate) / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) return 'deadline-overdue'
+  if (diffDays === 0) return 'deadline-today'
+  if (diffDays === 1) return 'deadline-soon'
+  return 'deadline-normal'
+}
+
+function getPriorityColor(priority?: string): string {
+  switch ((priority || '').toLowerCase()) {
+    case 'high': return '#E53935'
+    case 'medium': return '#FB8C00'
+    case 'low': return '#1E88E5'
+    default: return '#9E9E9E'
+  }
+}
+
+function formatDeadlineFull(dateStr?: string | Date): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function navigateToTask(task: any) {
+  if (task.moduleCode) {
+    router.push(`/module/${task.moduleCode}?tab=${task.isModuleTodo ? 'tasks' : 'assignments'}`)
+  } else {
+    router.push('/tasks')
+  }
+}
+
+async function toggleTaskComplete(task: any) {
+  const willBeCompleted = !task.completed
+  try {
+    if (task.isModuleTodo) {
+      await SetTaskDone(task.originalId, willBeCompleted)
+      task.completed = willBeCompleted
+      task.status = willBeCompleted ? 'completed' : 'pending'
+      eventBus.emit(SYNC_EVENTS.TASKS_CHANGED, { id: task.originalId, done: willBeCompleted })
+    } else {
+      const newStatus = willBeCompleted ? 'completed' : 'pending'
+      await UpdateAssignmentStatus(task.originalId, newStatus)
+      task.completed = willBeCompleted
+      task.status = newStatus
+      eventBus.emit(SYNC_EVENTS.ASSIGNMENTS_CHANGED, { id: task.originalId, status: newStatus })
+    }
+    await fetchModules()
+  } catch (err: any) {
+    showAlertMsg('Failed to update task: ' + err, 'error')
+  }
+}
+
+// Last backup timestamp
+const lastBackupDate = ref<string | null>(localStorage.getItem('schive_last_backup_date'))
+
+const lastBackupDateFormatted = computed(() => {
+  if (!lastBackupDate.value) return null
+  const d = new Date(lastBackupDate.value)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+})
 
 const isDark = ref(theme.global.current.value.dark)
 
@@ -659,12 +933,14 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 async function fetchModules() {
   try {
     isLoading.value = true
-    const [mods, folderList] = await Promise.all([
+    const [mods, folderList, assigns] = await Promise.all([
       GetAllModules(),
       GetAllModuleFolders(),
+      GetAllAssignments().catch(() => []),
     ])
     modules.value = mods || []
     folders.value = folderList || []
+    allAssignments.value = assigns || []
     isLoading.value = false
   } catch (err) {
     alertMsg.value = 'Failed to get available modules ' + (err as string)
@@ -925,6 +1201,9 @@ async function handleBackup() {
   try {
     isBackingUp.value = true
     const backupPath = await CreateBackup()
+    const nowIso = new Date().toISOString()
+    lastBackupDate.value = nowIso
+    localStorage.setItem('schive_last_backup_date', nowIso)
     alertMsg.value = `Backup created successfully at: ${backupPath}`
     alertType.value = 'success'
     showAlert.value = true
@@ -937,13 +1216,37 @@ async function handleBackup() {
   }
 }
 
+watch(
+  () => router.currentRoute.value.fullPath,
+  () => {
+    fetchModules()
+  }
+)
+
+let unsubTasks: (() => void) | null = null
+let unsubAssignments: (() => void) | null = null
+let unsubModules: (() => void) | null = null
+
 onMounted(() => {
   fetchModules()
   window.addEventListener('keydown', handleGlobalKeydown)
+
+  unsubTasks = eventBus.on(SYNC_EVENTS.TASKS_CHANGED, () => {
+    fetchModules()
+  })
+  unsubAssignments = eventBus.on(SYNC_EVENTS.ASSIGNMENTS_CHANGED, () => {
+    fetchModules()
+  })
+  unsubModules = eventBus.on(SYNC_EVENTS.MODULES_CHANGED, () => {
+    fetchModules()
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  if (unsubTasks) unsubTasks()
+  if (unsubAssignments) unsubAssignments()
+  if (unsubModules) unsubModules()
 })
 </script>
 
@@ -1079,6 +1382,86 @@ onUnmounted(() => {
 
 .search-result-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-section-header:hover {
+  background: var(--color-bg-3);
+}
+
+.tasks-sidebar-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.sidebar-task-item {
+  transition: background-color 0.15s ease;
+  min-height: 28px;
+}
+
+.sidebar-task-item:hover {
+  background: var(--color-bg-3);
+}
+
+.sidebar-task-item.task-completed {
+  opacity: 0.55;
+}
+
+.sidebar-task-item.task-completed .task-title {
+  text-decoration: line-through;
+}
+
+.task-priority-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.task-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.task-deadline-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.deadline-overdue {
+  background-color: rgba(229, 57, 53, 0.15);
+  color: #E53935;
+}
+
+.deadline-today {
+  background-color: rgba(251, 140, 0, 0.15);
+  color: #FB8C00;
+}
+
+.deadline-soon {
+  background-color: rgba(30, 136, 229, 0.15);
+  color: #1E88E5;
+}
+
+.deadline-normal {
+  background-color: var(--color-bg-4);
+  color: var(--color-text-light);
+}
+
+.task-module-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: var(--color-bg-4);
+  letter-spacing: 0.2px;
+}
+
+.backup-date-display {
+  font-size: 11px;
 }
 
 .cursor-pointer {

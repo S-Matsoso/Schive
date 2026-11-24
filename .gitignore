@@ -8,3 +8,4 @@ schiveApplicationDB.db
 backups/
 .freebuff/
 uploads/*
+*.sql

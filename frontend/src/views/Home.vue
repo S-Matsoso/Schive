@@ -376,11 +376,12 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { models } from '../../wailsjs/go/models'
 import { GetAllModules, GetAllModuleFolders } from '../../wailsjs/go/controllers/ModuleController'
 import { GetAllAssignments, UpdateAssignmentStatus } from '../../wailsjs/go/controllers/AssignmentController'
 import { OpenFile } from '../../wailsjs/go/controllers/FileController'
+import { eventBus, SYNC_EVENTS } from '../utils/eventBus'
 
 const modules = ref<models.Module[]>([])
 const folders = ref<models.ModuleFolder[]>([])
@@ -550,6 +551,7 @@ async function markAssignmentComplete(id: string) {
     alertType.value = 'success'
     showAlert.value = true
     await fetchAllData()
+    eventBus.emit(SYNC_EVENTS.ASSIGNMENTS_CHANGED, { id, status: 'completed' })
   } catch (err: any) {
     alertMsg.value = 'Failed to update assignment: ' + err
     alertType.value = 'error'
@@ -633,8 +635,22 @@ function getFileIcon(type?: string): string {
   return 'mdi-file-document-outline'
 }
 
+let unsubAssignments: (() => void) | null = null
+let unsubTasks: (() => void) | null = null
+
 onMounted(() => {
   fetchAllData()
+  unsubAssignments = eventBus.on(SYNC_EVENTS.ASSIGNMENTS_CHANGED, () => {
+    fetchAllData()
+  })
+  unsubTasks = eventBus.on(SYNC_EVENTS.TASKS_CHANGED, () => {
+    fetchAllData()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubAssignments) unsubAssignments()
+  if (unsubTasks) unsubTasks()
 })
 </script>
 

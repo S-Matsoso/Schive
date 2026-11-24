@@ -23,7 +23,7 @@ func NewModuleService(db *gorm.DB) *ModuleService {
 func (s *ModuleService) GetAllModules() ([]models.Module, error) {
 	var modules []models.Module
 	err := s.DB.Preload("Files").Preload("Folders").Preload("ClassSlots").
-		Preload("Assignments").Preload("Flashcards").Find(&modules).Error
+		Preload("Assignments").Preload("Tasks").Preload("Flashcards").Find(&modules).Error
 	return modules, err
 }
 
@@ -34,7 +34,7 @@ func (s *ModuleService) GetModule(code string) (*models.Module, error) {
 	}
 	var module models.Module
 	err := s.DB.Preload("Files").Preload("Folders").Preload("ClassSlots").
-		Preload("Assignments").Preload("Flashcards").Where("code = ?", cleanCode).First(&module).Error
+		Preload("Assignments").Preload("Tasks").Preload("Flashcards").Where("code = ?", cleanCode).First(&module).Error
 	if err != nil {
 		return nil, err
 	}
